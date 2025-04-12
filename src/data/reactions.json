@@ -1,0 +1,560 @@
+[
+  {
+    "id": 1,
+    "elements": [1, 8],
+    "result": "2H₂ + O₂ → 2H₂O (물 생성)",
+    "effect": {
+      "type": "boost_health",
+      "value": 2
+    }
+  },
+  {
+    "id": 2,
+    "elements": [1, 9],
+    "result": "H₂ + F₂ → 2HF (불화수소 생성)",
+    "effect": {
+      "type": "damage",
+      "value": 3
+    }
+  },
+  {
+    "id": 3,
+    "elements": [1, 7],
+    "result": "3H₂ + N₂ → 2NH₃ (암모니아 생성)",
+    "effect": {
+      "type": "boost_attack",
+      "value": 2
+    }
+  },
+  {
+    "id": 4,
+    "elements": [6, 8],
+    "result": "C + O₂ → CO₂ (이산화탄소 생성)",
+    "effect": {
+      "type": "damage",
+      "value": 1
+    }
+  },
+  {
+    "id": 5,
+    "elements": [3, 8],
+    "result": "4Li + O₂ → 2Li₂O (산화리튬 생성)",
+    "effect": {
+      "type": "boost_attack",
+      "value": 3
+    }
+  },
+  {
+    "id": 6,
+    "elements": [11, 9],
+    "result": "2Na + F₂ → 2NaF (플루오린화나트륨 생성)",
+    "effect": {
+      "type": "boost_health",
+      "value": 3
+    }
+  },
+  {
+    "id": 7,
+    "elements": [11, 17],
+    "result": "2Na + Cl₂ → 2NaCl (염화나트륨/소금 생성)",
+    "effect": {
+      "type": "boost_health",
+      "value": 4
+    }
+  },
+  {
+    "id": 8,
+    "elements": [1, 6],
+    "result": "C + 2H₂ → CH₄ (메탄 생성)",
+    "effect": {
+      "type": "boost_attack",
+      "value": 1
+    }
+  },
+  {
+    "id": 9,
+    "elements": [3, 9],
+    "result": "Li + F → LiF (불화리튬 생성)",
+    "effect": {
+      "type": "explosive",
+      "value": 0
+    }
+  },
+  {
+    "id": 10,
+    "elements": [12, 8],
+    "result": "2Mg + O₂ → 2MgO (산화마그네슘 생성)",
+    "effect": {
+      "type": "boost_health",
+      "value": 2
+    }
+  },
+  {
+    "id": 11,
+    "elements": [16, 8],
+    "result": "S + O₂ → SO₂ (이산화황 생성)",
+    "effect": {
+      "type": "damage_over_time",
+      "value": 1,
+      "duration": 3
+    },
+    "moleculeId": "SO2",
+    "moleculeName": "이산화황"
+  },
+  {
+    "id": 12,
+    "elements": [17, 1],
+    "result": "H₂ + Cl₂ → 2HCl (염화수소 생성)",
+    "effect": {
+      "type": "corrosive",
+      "value": 2,
+      "duration": 2
+    },
+    "moleculeId": "HCl",
+    "moleculeName": "염화수소"
+  },
+  {
+    "id": 13,
+    "elements": [6, 1],
+    "result": "2C + H₂ → C₂H₂ (아세틸렌 생성)",
+    "effect": {
+      "type": "explosive_damage",
+      "value": 5
+    },
+    "moleculeId": "C2H2",
+    "moleculeName": "아세틸렌"
+  },
+  {
+    "id": 14,
+    "elements": [7, 8],
+    "result": "N₂ + O₂ → 2NO (일산화질소 생성)",
+    "effect": {
+      "type": "shield_reduction",
+      "value": 3
+    },
+    "moleculeId": "NO",
+    "moleculeName": "일산화질소"
+  },
+  {
+    "id": 15,
+    "elements": [6, 8],
+    "result": "2CO + O₂ → 2CO₂ (일산화탄소의 산화)",
+    "effect": {
+      "type": "suffocation",
+      "value": 2,
+      "duration": 2
+    },
+    "moleculeId": "CO2",
+    "moleculeName": "이산화탄소"
+  },
+  {
+    "id": 16,
+    "elements": [1, 17],
+    "result": "H₂ + Cl₂ → 2HCl (염화수소산 생성)",
+    "effect": {
+      "type": "acid_damage",
+      "value": 3
+    },
+    "moleculeId": "HCl",
+    "moleculeName": "염화수소산"
+  },
+  {
+    "id": 17,
+    "elements": [7, 1],
+    "result": "N₂ + 3H₂ → 2NH₃ (암모니아 생성)",
+    "effect": {
+      "type": "freeze",
+      "value": 1,
+      "duration": 1
+    },
+    "moleculeId": "NH3",
+    "moleculeName": "암모니아"
+  },
+  {
+    "id": 18,
+    "elements": [6, 1, 8],
+    "result": "C + 2H₂ + O₂ → CH₃OH (메탄올 생성)",
+    "effect": {
+      "type": "intoxication",
+      "value": 2,
+      "duration": 2
+    },
+    "moleculeId": "CH3OH",
+    "moleculeName": "메탄올"
+  },
+  {
+    "id": 19,
+    "elements": [16, 1],
+    "result": "S + H₂ → H₂S (황화수소 생성)",
+    "effect": {
+      "type": "poison",
+      "value": 2,
+      "duration": 3
+    },
+    "moleculeId": "H2S",
+    "moleculeName": "황화수소"
+  },
+  {
+    "id": 20,
+    "elements": [19, 17],
+    "result": "2K + Cl₂ → 2KCl (염화칼륨 생성)",
+    "effect": {
+      "type": "heal_over_time",
+      "value": 1,
+      "duration": 3
+    },
+    "moleculeId": "KCl",
+    "moleculeName": "염화칼륨"
+  },
+  {
+    "id": 21,
+    "elements": [11, 8],
+    "result": "4Na + O₂ → 2Na₂O (산화나트륨 생성)",
+    "effect": {
+      "type": "base_damage",
+      "value": 3
+    },
+    "moleculeId": "Na2O",
+    "moleculeName": "산화나트륨"
+  },
+  {
+    "id": 22,
+    "elements": [20, 8],
+    "result": "2Ca + O₂ → 2CaO (산화칼슘/생석회 생성)",
+    "effect": {
+      "type": "burn",
+      "value": 2,
+      "duration": 2
+    },
+    "moleculeId": "CaO",
+    "moleculeName": "산화칼슘"
+  },
+  {
+    "id": 23,
+    "elements": [13, 8],
+    "result": "4Al + 3O₂ → 2Al₂O₃ (산화알루미늄 생성)",
+    "effect": {
+      "type": "armor",
+      "value": 5
+    },
+    "moleculeId": "Al2O3",
+    "moleculeName": "산화알루미늄"
+  },
+  {
+    "id": 24,
+    "elements": [14, 8],
+    "result": "Si + O₂ → SiO₂ (이산화규소/실리카 생성)",
+    "effect": {
+      "type": "barrier",
+      "value": 4,
+      "duration": 3
+    },
+    "moleculeId": "SiO2",
+    "moleculeName": "이산화규소"
+  },
+  {
+    "id": 25,
+    "elements": [15, 17],
+    "result": "2P + 3Cl₂ → 2PCl₃ (삼염화인 생성)",
+    "effect": {
+      "type": "water_reactive",
+      "value": 4
+    },
+    "moleculeId": "PCl3",
+    "moleculeName": "삼염화인"
+  },
+  {
+    "id": 26,
+    "elements": [15, 8],
+    "result": "4P + 5O₂ → P₄O₁₀ (산화인 생성)",
+    "effect": {
+      "type": "desiccation",
+      "value": 2,
+      "duration": 2
+    },
+    "moleculeId": "P4O10",
+    "moleculeName": "산화인"
+  },
+  {
+    "id": 27,
+    "elements": [16, 8],
+    "result": "2SO₂ + O₂ → 2SO₃ (삼산화황 생성)",
+    "effect": {
+      "type": "acid_rain",
+      "value": 1,
+      "aoe": true
+    },
+    "moleculeId": "SO3",
+    "moleculeName": "삼산화황"
+  },
+  {
+    "id": 28,
+    "elements": [1, 9],
+    "result": "H₂ + F₂ → 2HF (불화수소 생성)",
+    "effect": {
+      "type": "glass_corrosion",
+      "value": 4
+    },
+    "moleculeId": "HF",
+    "moleculeName": "불화수소"
+  },
+  {
+    "id": 29,
+    "elements": [6, 17],
+    "result": "C + 2Cl₂ → CCl₄ (사염화탄소 생성)",
+    "effect": {
+      "type": "solvent",
+      "value": 2
+    },
+    "moleculeId": "CCl4",
+    "moleculeName": "사염화탄소"
+  },
+  {
+    "id": 30,
+    "elements": [1, 6, 8],
+    "result": "C₆H₁₂O₆ (포도당 생성)",
+    "effect": {
+      "type": "energy_boost",
+      "value": 3,
+      "duration": 2
+    },
+    "moleculeId": "C6H12O6",
+    "moleculeName": "포도당"
+  },
+  {
+    "id": 31,
+    "elements": [6, 8, 20],
+    "result": "CaCO₃ (탄산칼슘 생성)",
+    "effect": {
+      "type": "fortification",
+      "value": 5
+    },
+    "moleculeId": "CaCO3",
+    "moleculeName": "탄산칼슘"
+  },
+  {
+    "id": 32,
+    "elements": [1, 7, 8],
+    "result": "HNO₃ (질산 생성)",
+    "effect": {
+      "type": "oxidizer",
+      "value": 3
+    },
+    "moleculeId": "HNO3",
+    "moleculeName": "질산"
+  },
+  {
+    "id": 33,
+    "elements": [1, 16, 8],
+    "result": "H₂SO₄ (황산 생성)",
+    "effect": {
+      "type": "dehydration",
+      "value": 3
+    },
+    "moleculeId": "H2SO4",
+    "moleculeName": "황산"
+  },
+  {
+    "id": 34,
+    "elements": [7, 8, 1],
+    "result": "NH₄NO₃ (질산암모늄 생성)",
+    "effect": {
+      "type": "explosive",
+      "value": 6,
+      "aoe": true
+    },
+    "moleculeId": "NH4NO3",
+    "moleculeName": "질산암모늄"
+  },
+  {
+    "id": 35,
+    "elements": [6, 1, 7],
+    "result": "C₃H₇NO₂ (알라닌 생성)",
+    "effect": {
+      "type": "regeneration",
+      "value": 2,
+      "duration": 3
+    },
+    "moleculeId": "C3H7NO2",
+    "moleculeName": "알라닌"
+  },
+  {
+    "id": 36,
+    "elements": [9, 6],
+    "result": "CF₄ (테트라플루오로메테인 생성)",
+    "effect": {
+      "type": "inert_shield",
+      "value": 3,
+      "duration": 2
+    },
+    "moleculeId": "CF4",
+    "moleculeName": "테트라플루오로메테인"
+  },
+  {
+    "id": 37,
+    "elements": [14, 9],
+    "result": "SiF₄ (사불화규소 생성)",
+    "effect": {
+      "type": "silicon_bond",
+      "value": 3
+    },
+    "moleculeId": "SiF4",
+    "moleculeName": "사불화규소"
+  },
+  {
+    "id": 38,
+    "elements": [11, 17, 8],
+    "result": "NaClO (차아염소산나트륨/표백제 생성)",
+    "effect": {
+      "type": "purification",
+      "value": 3,
+      "cleanse": true
+    },
+    "moleculeId": "NaClO",
+    "moleculeName": "차아염소산나트륨"
+  },
+  {
+    "id": 39,
+    "elements": [19, 8, 1],
+    "result": "KOH (수산화칼륨 생성)",
+    "effect": {
+      "type": "caustic",
+      "value": 2,
+      "duration": 2
+    },
+    "moleculeId": "KOH",
+    "moleculeName": "수산화칼륨"
+  },
+  {
+    "id": 40,
+    "elements": [12, 17],
+    "result": "MgCl₂ (염화마그네슘 생성)",
+    "effect": {
+      "type": "electrolyte",
+      "value": 2,
+      "conductor": true
+    },
+    "moleculeId": "MgCl2",
+    "moleculeName": "염화마그네슘"
+  },
+  {
+    "id": 41,
+    "elements": [13, 9],
+    "result": "AlF₃ (삼불화알루미늄 생성)",
+    "effect": {
+      "type": "catalyst",
+      "value": 3,
+      "speedup": 1.5
+    },
+    "moleculeId": "AlF3",
+    "moleculeName": "삼불화알루미늄"
+  },
+  {
+    "id": 42,
+    "elements": [8, 16, 1],
+    "result": "H₂O + SO₃ → H₂SO₄ (황산 생성)",
+    "effect": {
+      "type": "acid_splash",
+      "value": 3,
+      "aoe": true
+    },
+    "moleculeId": "H2SO4",
+    "moleculeName": "황산"
+  },
+  {
+    "id": 43,
+    "elements": [20, 6, 8],
+    "result": "CaCO₃ (석회석 생성)",
+    "effect": {
+      "type": "hardening",
+      "value": 4,
+      "duration": 2
+    },
+    "moleculeId": "CaCO3",
+    "moleculeName": "석회석"
+  },
+  {
+    "id": 44,
+    "elements": [14, 1],
+    "result": "SiH₄ (실란 생성)",
+    "effect": {
+      "type": "spontaneous_combustion",
+      "value": 4
+    },
+    "moleculeId": "SiH4",
+    "moleculeName": "실란"
+  },
+  {
+    "id": 45,
+    "elements": [15, 1],
+    "result": "PH₃ (포스핀 생성)",
+    "effect": {
+      "type": "toxic_gas",
+      "value": 3,
+      "duration": 2
+    },
+    "moleculeId": "PH3",
+    "moleculeName": "포스핀"
+  },
+  {
+    "id": 46,
+    "elements": [6, 1, 17],
+    "result": "CHCl₃ (클로로포름 생성)",
+    "effect": {
+      "type": "anesthesia",
+      "value": 2,
+      "duration": 1
+    },
+    "moleculeId": "CHCl3",
+    "moleculeName": "클로로포름"
+  },
+  {
+    "id": 47,
+    "elements": [7, 1, 8],
+    "result": "NH₂OH (히드록실아민 생성)",
+    "effect": {
+      "type": "reducing_agent",
+      "value": 2
+    },
+    "moleculeId": "NH2OH",
+    "moleculeName": "히드록실아민"
+  },
+  {
+    "id": 48,
+    "elements": [16, 1, 7],
+    "result": "NH₄HS (황화수소암모늄 생성)",
+    "effect": {
+      "type": "rotten_egg",
+      "value": 1,
+      "distraction": true
+    },
+    "moleculeId": "NH4HS",
+    "moleculeName": "황화수소암모늄"
+  },
+  {
+    "id": 49,
+    "elements": [6, 8, 1, 7],
+    "result": "C₆H₈O₆ (아스코르브산/비타민C 생성)",
+    "effect": {
+      "type": "antioxidant",
+      "value": 2,
+      "duration": 4,
+      "immunity": true
+    },
+    "moleculeId": "C6H8O6",
+    "moleculeName": "아스코르브산"
+  },
+  {
+    "id": 50,
+    "elements": [6, 1, 8, 7],
+    "result": "C₅H₅N₅O (구아닌 생성)",
+    "effect": {
+      "type": "dna_repair",
+      "value": 3,
+      "duration": 3,
+      "regeneration": true
+    },
+    "moleculeId": "C5H5N5O",
+    "moleculeName": "구아닌"
+  }
+]

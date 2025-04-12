@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>원소 대전</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+  <style>
+    /* 커스텀 스타일 */
+    .perspective-800 {
+      perspective: 800px;
+    }
+    .transform-style-preserve-3d {
+      transform-style: preserve-3d;
+    }
+    .lane-slot {
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    .lane-slot.drop-active {
+      background-color: rgba(56, 189, 248, 0.3);
+      border: 2px dashed rgb(56, 189, 248);
+      border-radius: 0.5rem;
+    }
+    /* 기타 필요한 스타일 추가 */
+  </style>
+</head>
+<body class="bg-gray-900 font-sans text-white">
+  <div class="max-w-6xl mx-auto p-4 perspective-800">
+    <!-- 헤더 -->
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-3xl font-bold text-yellow-400">원소 대전</h1>
+      <div class="flex items-center">
+        <button id="tutorial-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white py-1 px-4 rounded-md shadow transition-colors mr-3">
+          튜토리얼
+        </button>
+        <div class="coin-display flex items-center bg-yellow-600 px-4 py-1 rounded-full">
+          <span class="text-xl mr-1">💰</span>
+          <span id="coin-amount" class="font-bold">0</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 게임 정보 -->
+    <div class="game-info mb-4 flex justify-between">
+      <div class="player-info text-left">
+        <h2 class="text-xl font-bold text-blue-400">플레이어</h2>
+        <div>점수: <span id="player-score" class="font-bold">0</span></div>
+      </div>
+      <div id="result-message" class="text-center text-xl font-bold h-12 text-green-400">
+        원소를 배치하세요!
+      </div>
+      <div class="computer-info text-right">
+        <h2 class="text-xl font-bold text-red-400">컴퓨터</h2>
+        <div>점수: <span id="computer-score" class="font-bold">0</span></div>
+        <!-- 컴퓨터 코인 표시 추가 -->
+        <div class="mt-1">
+            <span class="text-sm text-red-300">코인: 💰</span>
+            <span id="computer-coin-amount" class="font-bold text-red-300">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2.5D 테이블 형태의 전투 필드 -->
+    <div class="battlefield-container relative mb-8 h-[500px] transform-style-preserve-3d">
+      <!-- 컴퓨터 과학 기지 -->
+      <div id="computer-base" class="absolute top-2 left-1/2 transform -translate-x-1/2 z-10">
+        <div class="bg-red-900 rounded-lg p-2 shadow-lg w-64 transform rotateX(30deg) scale-y-75">
+          <h3 class="text-center text-red-200 font-bold mb-1">적 과학 기지</h3>
+          <div class="bg-red-800 rounded-lg p-1">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-xs text-red-200">체력:</span>
+              <span id="computer-base-hp" class="font-bold text-red-200">100</span>
+            </div>
+            <div class="w-full bg-red-950 rounded-full h-2">
+              <div id="computer-base-hp-bar" class="bg-red-500 h-2 rounded-full" style="width: 100%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 전투 필드 영역 -->
+      <div id="battlefield" class="bg-gradient-to-b from-gray-700 to-gray-900 rounded-xl p-6 transform rotateX(30deg) shadow-2xl mt-6">
+        <div class="grid grid-cols-5 gap-4">
+          <!-- 5개의 라인 -->
+          <div id="lane-0" class="battlefield-lane relative h-[280px] border-l-2 border-r-2 border-yellow-800 px-1">
+            <div class="lane-slots flex flex-col justify-between h-full">
+              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
+              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
+            </div>
+          </div>
+          <div id="lane-1" class="battlefield-lane relative h-[280px] border-l-2 border-r-2 border-yellow-800 px-1">
+            <div class="lane-slots flex flex-col justify-between h-full">
+              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
+              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
+            </div>
+          </div>
+          <div id="lane-2" class="battlefield-lane relative h-[280px] border-l-2 border-r-2 border-yellow-800 px-1">
+            <div class="lane-slots flex flex-col justify-between h-full">
+              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
+              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
+            </div>
+          </div>
+          <div id="lane-3" class="battlefield-lane relative h-[280px] border-l-2 border-r-2 border-yellow-800 px-1">
+            <div class="lane-slots flex flex-col justify-between h-full">
+              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
+              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
+            </div>
+          </div>
+          <div id="lane-4" class="battlefield-lane relative h-[280px] border-l-2 border-r-2 border-yellow-800 px-1">
+            <div class="lane-slots flex flex-col justify-between h-full">
+              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
+              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 플레이어 과학 기지 -->
+      <div id="player-base" class="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-10">
+        <div class="bg-blue-900 rounded-lg p-2 shadow-lg w-64 transform rotateX(30deg) scale-y-75">
+          <h3 class="text-center text-blue-200 font-bold mb-1">내 과학 기지</h3>
+          <div class="bg-blue-800 rounded-lg p-1">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-xs text-blue-200">체력:</span>
+              <span id="player-base-hp" class="font-bold text-blue-200">100</span>
+            </div>
+            <div class="w-full bg-blue-950 rounded-full h-2">
+              <div id="player-base-hp-bar" class="bg-blue-500 h-2 rounded-full" style="width: 100%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 플레이어 손패 영역 -->
+    <div class="player-area">
+      <h2 class="text-xl font-bold text-blue-400 mb-3">내 손패</h2>
+      <div id="player-hand" class="flex flex-wrap justify-center gap-4 min-h-[160px] mb-6 p-4 rounded-lg bg-gray-800 shadow-inner">
+        <!-- 카드들이 여기에 추가됨 -->
+      </div>
+      <!-- 뽑기 버튼 영역 -->
+      <div class="controls flex justify-center space-x-3 mb-4 flex-wrap">
+        <button id="draw-basic-btn" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md shadow transition-colors m-1">
+          일반 뽑기 (💰 2)
+        </button>
+        <button id="draw-premium-btn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md shadow transition-colors m-1">
+          고급 뽑기 (💰 5)
+        </button>
+        <button id="draw-legend-btn" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-md shadow transition-colors m-1">
+          레전드 뽑기 (💰 10)
+        </button>
+        <button id="end-turn-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-md shadow transition-colors m-1">
+          턴 종료
+        </button>
+        <button id="reset-btn" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md shadow transition-colors m-1">
+          게임 리셋
+        </button>
+      </div>
+    </div>
+    
+    <!-- 카드 강화 모달 -->
+    <div id="card-upgrade-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+        <h2 class="text-2xl font-bold text-yellow-400 mb-4">카드 강화</h2>
+        <div id="upgrade-card-display" class="flex justify-center mb-4"></div>
+        <div class="mb-4">
+          <h3 class="text-lg font-bold text-blue-300 mb-2">강화 효과</h3>
+          <div class="bg-gray-700 p-3 rounded-lg">
+            <p id="upgrade-effect-description" class="text-white"></p>
+          </div>
+        </div>
+        <div class="flex justify-between mt-2">
+          <div>비용: <span id="upgrade-cost" class="font-bold text-yellow-400"></span> 코인</div>
+          <div>현재 레벨: <span id="current-level" class="font-bold text-green-400"></span></div>
+        </div>
+        <div class="flex space-x-4 mt-2">
+          <button id="confirm-upgrade-btn" class="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
+            강화하기
+          </button>
+          <button id="cancel-upgrade-btn" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+            취소
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 튜토리얼 모달 -->
+    <div id="tutorial-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+        <h2 class="text-2xl font-bold text-yellow-400 mb-4">원소 대전 튜토리얼</h2>
+        <div class="tutorial-steps">
+          <div class="tutorial-step active" data-step="1">
+            <h3 class="text-xl text-blue-300 mb-3">1. 게임 소개</h3>
+            <p class="mb-2">원소 대전은 주기율표의 원소들을 활용한 카드 배틀 게임이야.</p>
+            <p class="mb-2">각 원소는 고유한 능력치와 특성을 가지며, 조합해 분자를 만들 수 있어.</p>
+            <img src="src/images/tutorial/game-overview.png" alt="게임 화면" class="my-3 rounded-lg w-full">
+          </div>
+          <div class="tutorial-step hidden" data-step="2">
+            <h3 class="text-xl text-blue-300 mb-3">2. 카드 뽑기</h3>
+            <p class="mb-2">게임 시작 시 기본 카드를 주고, 추가 카드는 코인을 사용해 뽑을 수 있어.</p>
+            <ul class="list-disc pl-5 mb-3">
+              <li>일반 뽑기: 2 코인 (일반 카드 위주)</li>
+              <li>고급 뽑기: 5 코인 (희귀 카드 확률 증가)</li>
+              <li>레전드 뽑기: 10 코인 (전설 카드 등장 가능)</li>
+            </ul>
+            <img src="src/images/tutorial/card-drawing.png" alt="카드 뽑기" class="my-3 rounded-lg w-full">
+          </div>
+          <div class="tutorial-step hidden" data-step="3">
+            <h3 class="text-xl text-blue-300 mb-3">3. 카드 배치와 전투</h3>
+            <p class="mb-2">카드를 5개의 라인 중 하나에 드래그해서 배치해.</p>
+            <p class="mb-2">턴이 끝나면 카드들이 서로 공격하고, 앞에 적이 없으면 상대 기지를 직접 공격해.</p>
+            <p class="mb-2">같은 자리에 여러 카드가 있으면 합쳐져서, 조합이 맞으면 자동으로 분자가 생성돼.</p>
+            <img src="src/images/tutorial/battle.png" alt="전투 화면" class="my-3 rounded-lg w-full">
+          </div>
+          <div class="tutorial-step hidden" data-step="4">
+            <h3 class="text-xl text-blue-300 mb-3">4. 분자 합성</h3>
+            <p class="mb-2">같은 자리에 특정 원소들이 모이면 자동으로 분자가 합성돼.</p>
+            <p class="mb-2">분자는 일반 원소보다 강력하고 특수 효과가 있어.</p>
+            <p class="mb-2">예: H + H + O → H₂O (물)</p>
+            <img src="src/images/tutorial/molecule.png" alt="분자 합성" class="my-3 rounded-lg w-full">
+          </div>
+          <div class="tutorial-step hidden" data-step="5">
+            <h3 class="text-xl text-blue-300 mb-3">5. 카드 강화</h3>
+            <p class="mb-2">전장에 배치된 카드를 클릭하면 코인을 사용해 강화할 수 있어.</p>
+            <p class="mb-2">강화할수록 카드의 공격력과 체력이 증가해.</p>
+            <img src="src/images/tutorial/upgrade.png" alt="카드 강화" class="my-3 rounded-lg w-full">
+          </div>
+        </div>
+        <div class="flex justify-between mt-6">
+          <button id="prev-tutorial" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-6 rounded">이전</button>
+          <div>
+            <span id="tutorial-step">1</span> / <span id="tutorial-total">5</span>
+          </div>
+          <button id="next-tutorial" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded">다음</button>
+        </div>
+        <div class="flex justify-center mt-4">
+          <button id="skip-tutorial" class="text-gray-400 hover:text-white">튜토리얼 건너뛰기</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 카드 뽑기 애니메이션 영역 -->
+    <div id="draw-animation-container" class="fixed inset-0 flex items-center justify-center z-50 pointer-events-none hidden">
+      <div id="draw-animation" class="relative">
+        <div class="card-pack bg-gradient-to-br from-purple-600 to-blue-800 w-48 h-64 rounded-lg shadow-2xl flex items-center justify-center">
+          <span class="text-white text-lg font-bold">원소 카드</span>
+        </div>
+        <div id="drawn-card" class="absolute top-0 left-0 w-48 h-64 opacity-0"></div>
+      </div>
+    </div>
+    
+    <!-- 승리/패배 모달 -->
+    <div id="game-result-modal" class="fixed inset-0 bg-black bg-opacity-90 hidden flex items-center justify-center z-50">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full text-center">
+        <h2 id="result-title" class="text-4xl font-bold mb-4"></h2>
+        <p id="result-message-detail" class="text-xl mb-6"></p>
+        <button id="new-game-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded text-xl">
+          새 게임 시작
+        </button>
+      </div>
+    </div>
+    
+    <!-- 분자 도감 모달 -->
+    <div id="molecule-collection-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+        <h2 class="text-2xl font-bold text-purple-300 mb-4">분자 도감</h2>
+        <div id="molecule-collection-content" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <!-- 분자들이 여기에 추가됨 -->
+        </div>
+        <button id="close-collection-modal" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+          닫기
+        </button>
+      </div>
+    </div>
+    
+    <!-- 카드 상세 정보 모달 -->
+    <div id="card-detail-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+        <div id="modal-content"></div>
+        <button id="close-modal" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 스크립트 파일 로드 (재구성된 폴더 구조) -->
+  <!-- 유틸리티 -->
+  <script src="src/js/utils/helpers.js"></script>
+  <script src="src/js/utils/coin.js"></script>
+
+  <!-- 코어 -->
+  <script src="src/js/core/data.js"></script>
+  <script src="src/js/core/state.js"></script>
+  <script src="src/js/core/battlefield.js"></script>
+  
+  <!-- UI -->
+  <script src="src/js/ui/animations.js"></script>
+  <script src="src/js/ui/battlefield.js"></script> <!-- 추가된 전장 렌더링 파일 -->
+  <script src="src/js/ui/modals.js"></script>
+  <script src="src/js/ui/tutorial.js"></script>
+  <script src="src/js/ui/ui.js"></script>
+  <script src="src/js/styles.js"></script>
+  
+  <!-- 메커니즘 -->
+  <script src="src/js/mechanics/card.js"></script>
+  <script src="src/js/mechanics/molecules.js"></script>
+  <script src="src/js/mechanics/reactions.js"></script>
+  <script src="src/js/mechanics/effects.js"></script>
+  <script src="src/js/mechanics/battle.js"></script>
+  <script src="src/js/mechanics/upgrades.js"></script>
+  
+  <!-- AI -->
+  <script src="src/js/ai/ai.js"></script>
+  
+  <!-- 코어 및 메인 -->
+  <script src="src/js/core/game.js"></script>
+  <script src="src/js/app.js"></script>
+</body>
+</html>
