@@ -18,7 +18,19 @@ const io = new Server(server, {
 // 미들웨어 설정
 app.use(cors());
 app.use(express.json());
-app.use(express.static('.'));
+
+// 정적 파일 서빙 설정
+app.use(express.static('.', {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    } else if (path.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css; charset=utf-8');
+    } else if (path.endsWith('.json')) {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    }
+  }
+}));
 
 // 게임 룸 관리
 class GameRoomManager {
@@ -559,6 +571,19 @@ io.on('connection', (socket) => {
 // 정적 파일 서빙
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// JavaScript 파일들을 위한 특별한 라우트
+app.get('/src/js/*', (req, res) => {
+  const filePath = path.join(__dirname, req.path);
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.sendFile(filePath);
+});
+
+// 기타 정적 파일들
+app.get('/src/*', (req, res) => {
+  const filePath = path.join(__dirname, req.path);
+  res.sendFile(filePath);
 });
 
 // API 엔드포인트 (기존 호환성을 위해 유지)
