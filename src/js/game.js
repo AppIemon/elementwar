@@ -1,4 +1,4 @@
-const gameState = {
+var gameState = {
   playerScore: 0,
   computerScore: 0,
   isGameActive: true,
@@ -8,1376 +8,2988 @@ const gameState = {
   turnCount: 1,
   selectedCardId: null,
   elementsData: [],
-  reactionsData: [],
-  upgrades: {
-    elements: {},
-    molecules: {}
-  },
-  // 등급별 출현 확률
-  rarityChances: {
-    basic: { common: 70, uncommon: 25, rare: 4, epic: 1, legendary: 0 },
-    premium: { common: 40, uncommon: 40, rare: 15, epic: 5, legendary: 0 },
-    legend: { common: 0, uncommon: 30, rare: 40, epic: 20, legendary: 10 }
-  }
+  moleculesData: [],
+  reactionsData: [], // 반응 데이터 (현재 빈 배열로 초기화)
+  effectsData: [],
+  cardStatsData: null, // 카드 스탯 데이터 (JSON에서 로드)
+  playerCoins: 20, // Starting coins for player (increased)
+  computerCoins: 20, // Starting coins for computer (increased)
+  energy: 0, // Player energy
+  drawCount: 0, // 통일된 뽑기 횟수 추적
+  // 뽑기 가격과 카드 수, 등급 확률을 동적으로 계산
+  baseDrawCost: 1, // 기본 뽑기 가격 (핵융합 시스템에 맞게 조정)
+  baseCardCount: 4, // 기본 카드 수 (더 많은 카드 제공)
+  costMultiplier: 1.15, // 가격 증가 배수 (더 완만하게 조정)
+  cardCountMultiplier: 1.1, // 카드 수 증가 배수 (완만하게 조정)
+  // 턴당 카드 제한 제거됨
+  // 핵융합 시스템 상태
+  fusionSystem: null,
+  // 난이도: 'easy' | 'normal' | 'hard'
+  difficulty: 'normal'
 };
 
-// 뽑기 가격 조정
-const CARD_COSTS = {
-  basic: 2,
-  premium: 5,
-  legend: 10
-};
-
-const BASE_ATTACK_DAMAGE = 3;
-const BASE_HEALING_RATE = 4;
-
-// 컴퓨터 카드 뽑기 비용
-const COMPUTER_DRAW_COSTS = {
-  basic: 2,
-  premium: 4, // 컴퓨터는 약간 할인된 가격
-  legend: 8
-};
-
-// 컴퓨터 코인 관리
-let computerCoins = 0;
-
-function addComputerCoins(amount) {
-  computerCoins += amount;
-  updateComputerCoinDisplay();
-}
-
-function spendComputerCoins(amount) {
-  computerCoins = Math.max(0, computerCoins - amount);
-  updateComputerCoinDisplay();
-}
-
-function getComputerCoins() {
-  return computerCoins;
-}
-
-function updateComputerCoinDisplay() {
-  const computerCoinDisplay = document.getElementById('computer-coin-amount');
-  if (computerCoinDisplay) {
-    computerCoinDisplay.textContent = computerCoins;
-  }
-}
-
-async function loadElementsData() {
-  const response = await fetch('src/data/elements.json');
-  gameState.elementsData = await response.json();
-}
-
-async function loadReactionsData() {
-  const response = await fetch('src/data/reactions.json');
-  gameState.reactionsData = await response.json();
-}
-
-function initGame() {
-  resetBattlefield();
-  updateScoreDisplay();
-  updateTurnIndicator();
-  
-  // 컴퓨터 초기 코인 설정
-  computerCoins = 4; // 컴퓨터는 조금 더 많은 코인으로 시작
-  updateComputerCoinDisplay();
-}
-
-// 카드 뽑기 함수들 - 연타 방지 제거
-function handleBasicDraw() {
-  drawCardByType('basic');
-}
-
-function handlePremiumDraw() {
-  drawCardByType('premium');
-}
-
-function handleLegendDraw() {
-  drawCardByType('legend');
-}
-
-// 뽑기 함수 단순화 (연타 가능하게)
-function drawCardByType(drawType) {
-  if (!gameState.isPlayerTurn) return;
-  
-  const cost = CARD_COSTS[drawType];
-  
-  if (getCoinAmount() < cost) {
-    showMessage('코인이 부족합니다!', 'error');
-    return;
-  }
-  
-  if (gameState.playerHand.length >= 8) {
-    showMessage('손패가 가득 찼습니다!', 'error');
-    return;
-  }
-  
-  spendCoins(cost);
-  
+// 카드 스탯 데이터 로드 함수 (elements.json과 molecules.json 사용)
+async function loadCardStatsData() {
   try {
-    // 애니메이션과 함께 카드 뽑기
-    showDrawAnimation(function(newCard) {
-      addCardToHand(newCard, 'player');
-      updateUI();
-      showMessage(`${newCard.element.name}(${newCard.element.symbol}) 카드를 뽑았습니다.`, 'success');
-    }, drawType);
+    // elements.json과 molecules.json이 이미 app.js에서 로드되었는지 확인
+    if (gameState.elementsData && gameState.moleculesData) {
+      console.log('카드 스탯 데이터가 이미 로드되었습니다.');
+      gameState.cardStatsData = {
+        elements: gameState.elementsData,
+        molecules: gameState.moleculesData
+      };
+      return true;
+    }
+
+    // 만약 로드되지 않았다면 직접 로드
+    const [elementsResponse, moleculesResponse] = await Promise.all([
+      fetch('src/data/elements.json'),
+      fetch('src/data/molecules.json')
+    ]);
+
+    if (!elementsResponse.ok) {
+      throw new Error(`Elements HTTP error! status: ${elementsResponse.status}`);
+    }
+    if (!moleculesResponse.ok) {
+      throw new Error(`Molecules HTTP error! status: ${moleculesResponse.status}`);
+    }
+
+    const elementsData = await elementsResponse.json();
+    const moleculesData = await moleculesResponse.json();
+    
+    gameState.elementsData = elementsData;
+    gameState.moleculesData = moleculesData;
+    gameState.cardStatsData = {
+      elements: elementsData,
+      molecules: moleculesData
+    };
+    
+    console.log('카드 스탯 데이터가 성공적으로 로드되었습니다.');
+    return true;
   } catch (error) {
-    console.error('카드 뽑기 애니메이션 실행 중 오류 발생:', error);
-    
-    // 애니메이션 실패 시 직접 카드 지급
-    const newCard = createRandomCardByRarity(drawType);
-    addCardToHand(newCard, 'player');
-    updateUI();
-    showMessage(`${newCard.element.name}(${newCard.element.symbol}) 카드를 뽑았습니다.`, 'success');
-  }
-}
-
-function endTurn() {
-  if (!gameState.isPlayerTurn) return;
-  
-  gameState.isPlayerTurn = false;
-  showMessage('컴퓨터 차례입니다.', 'info');
-  
-  gameState.turnCount++;
-  
-  // 카드 체력 자동 회복 체크
-  checkCardHealing();
-  
-  // 기지 체력 자동 회복
-  healBases();
-  
-  executeBattles();
-  addCoins(3);
-  
-  // 컴퓨터 턴 시작 시 기본 코인 제공
-  addComputerCoins(2);
-  
-  updateUI();
-  
-  setTimeout(computerTurn, 1500);
-}
-
-function computerTurn() {
-  if (gameState.isPlayerTurn) return;
-  
-  showMessage("컴퓨터 턴: 생각 중...", 'info');
-  
-  // 컴퓨터의 결정을 좀 더 자연스럽게 보이도록 지연 추가
-  setTimeout(() => {
-    // 1. 카드 뽑기: 보유 코인에 따라 뽑기 전략 결정
-    computerDrawCards();
-    
-    // 2. 손패의 카드를 전략적으로 배치
-    computerPlaceCards();
-    
-    // 3. 필드의 카드 강화
-    computerUpgradeCards();
-    
-    // 4. 턴 종료
-    setTimeout(() => {
-      showMessage("컴퓨터 턴 종료", 'info');
-      startPlayerTurn();
-    }, 800);
-  }, 1000);
-}
-
-// 컴퓨터 카드 뽑기 전략
-function computerDrawCards() {
-  // 손패가 부족하면 우선적으로 뽑기
-  while (gameState.computerHand.length < 5 && getComputerCoins() >= COMPUTER_DRAW_COSTS.basic) {
-    let drawType = 'basic';
-    
-    // 고급 카드 뽑기 결정
-    if (getComputerCoins() >= COMPUTER_DRAW_COSTS.legend && Math.random() > 0.7) {
-      drawType = 'legend';
-    } else if (getComputerCoins() >= COMPUTER_DRAW_COSTS.premium && Math.random() > 0.5) {
-      drawType = 'premium';
-    }
-    
-    // 카드 뽑기 실행
-    computerDrawCard(drawType);
-  }
-}
-
-// 컴퓨터 카드 뽑기 실행
-function computerDrawCard(drawType) {
-  // 비용 확인
-  const cost = COMPUTER_DRAW_COSTS[drawType];
-  if (getComputerCoins() < cost || gameState.computerHand.length >= 8) {
-    return null;
-  }
-  
-  // 코인 소비
-  spendComputerCoins(cost);
-  
-  // 카드 생성 및 손패에 추가
-  const newCard = createRandomCardByRarity(drawType);
-  addCardToHand(newCard, 'computer');
-  
-  // 간략한 애니메이션 표시
-  showMessage(`컴퓨터가 카드를 뽑았습니다.`, 'info');
-  
-  // UI 업데이트
-  renderComputerHand();
-  
-  return newCard;
-}
-
-// 컴퓨터 카드 배치 전략
-function computerPlaceCards() {
-  if (gameState.computerHand.length === 0) return;
-  
-  // 최대 2장까지 배치 (전략적 결정)
-  const maxPlacement = Math.min(2, gameState.computerHand.length);
-  let placed = 0;
-  
-  // 전략 1: 상대가 있는 레인에 대응하기
-  for (let i = 0; i < battlefield.lanes.length && placed < maxPlacement; i++) {
-    const lane = battlefield.lanes[i];
-    
-    // 상대 카드가 있고 내 카드가 없는 레인이면 배치 고려
-    if (lane.player && !lane.player.isSkull && (!lane.computer || lane.computer.isSkull)) {
-      const bestCard = findBestCounterCard(lane.player, gameState.computerHand);
-      if (bestCard) {
-        if (placeCardOnBattlefield(bestCard, i, 'computer')) {
-          removeCardFromHand(bestCard.id, 'computer');
-          placed++;
-        }
-      }
-    }
-  }
-  
-  // 전략 2: 빈 레인에 카드 배치하기
-  for (let i = 0; i < battlefield.lanes.length && placed < maxPlacement; i++) {
-    const lane = battlefield.lanes[i];
-    
-    // 빈 레인이거나 아군 카드가 해골인 레인
-    if (!lane.computer || lane.computer.isSkull) {
-      // 무작위 또는 가장 강한 카드 선택
-      const randomIndex = Math.floor(Math.random() * gameState.computerHand.length);
-      const card = gameState.computerHand[randomIndex];
-      
-      if (placeCardOnBattlefield(card, i, 'computer')) {
-        removeCardFromHand(card.id, 'computer');
-        placed++;
-      }
-    }
-  }
-  
-  // 전략 3: 기존 합성물에 추가 강화
-  if (placed < maxPlacement) {
-    for (let i = 0; i < battlefield.lanes.length && placed < maxPlacement; i++) {
-      const lane = battlefield.lanes[i];
-      
-      // 이미 내 카드가 있는 레인
-      if (lane.computer && !lane.computer.isSkull) {
-        // 추가 합성 가능성이 있는 카드 찾기
-        const compatibleCard = findCompatibleCard(lane.computer, gameState.computerHand);
-        if (compatibleCard) {
-          if (placeCardOnBattlefield(compatibleCard, i, 'computer')) {
-            removeCardFromHand(compatibleCard.id, 'computer');
-            placed++;
-          }
-        }
-      }
-    }
-  }
-  
-  // UI 업데이트
-  renderComputerHand();
-}
-
-// 컴퓨터 카드 강화 전략
-function computerUpgradeCards() {
-  // 전장의 모든 컴퓨터 카드 검사
-  for (let i = 0; i < battlefield.lanes.length; i++) {
-    const lane = battlefield.lanes[i];
-    
-    // 배치된 카드가 있고 해골이 아니면
-    if (lane.computer && !lane.computer.isSkull) {
-      const card = lane.computer;
-      const upgradeLevel = card.upgradeLevel || 0;
-      
-      // 강화 비용 계산
-      const cost = calculateUpgradeCost(upgradeLevel, card.element.rarity);
-      
-      // 전략적 강화 결정
-      let shouldUpgrade = false;
-      
-      // 1. 코인이 충분하고 레벨이 낮으면 무조건 강화
-      if (getComputerCoins() >= cost && upgradeLevel < 2) {
-        shouldUpgrade = true;
-      }
-      // 2. 상대방 카드와 대치 중이면 승리 가능성에 따라 강화
-      else if (lane.player && !lane.player.isSkull) {
-        const playerCard = lane.player;
-        
-        // 내 카드가 약하면 강화 고려
-        if (card.atk < playerCard.hp && getComputerCoins() >= cost) {
-          shouldUpgrade = true;
-        }
-      }
-      // 3. 상대방 카드가 없으면 기회 강화
-      else if (!lane.player && getComputerCoins() >= cost * 1.5) {
-        shouldUpgrade = true;
-      }
-      
-      // 강화 실행
-      if (shouldUpgrade) {
-        const success = computerUpgradeCard(card, cost);
-        if (success) {
-          showMessage(`컴퓨터가 카드를 강화했습니다!`, 'warning');
-        }
-      }
-    }
-  }
-}
-
-// 컴퓨터 카드 강화 실행
-function computerUpgradeCard(card, cost) {
-  // 코인 확인
-  if (getComputerCoins() < cost) {
+    console.error('카드 스탯 데이터 로드 실패:', error);
+    gameState.cardStatsData = null;
     return false;
   }
-  
-  // 코인 소비
-  spendComputerCoins(cost);
-  
-  // 현재 레벨 기준으로 능력치 증가
-  const currentLevel = card.upgradeLevel || 0;
-  const newLevel = currentLevel + 1;
-  
-  // 기본 증가량
-  const atkIncrease = Math.floor(1 + (newLevel * 0.5));
-  const hpIncrease = Math.floor(2 + (newLevel * 0.8));
-  
-  // 능력치 증가
-  card.atk += atkIncrease;
-  card.maxHp += hpIncrease;
-  card.hp += hpIncrease;
-  
-  // 레벨 증가
-  card.upgradeLevel = newLevel;
-  
-  // 업그레이드 애니메이션은 showCardDestroyEffect 함수가 이미 있다면 실행
-  const cardElement = document.querySelector(`[data-card-id="${card.id}"]`);
-  if (cardElement && typeof applyCardUpgradeAnimation === 'function') {
-    applyCardUpgradeAnimation(cardElement);
-  }
-  
-  renderBattlefield();
-  return true;
 }
 
-// 최적의 대응 카드 찾기
-function findBestCounterCard(targetCard, availableCards) {
-  if (!availableCards || availableCards.length === 0) return null;
+// 통합 데이터 로드 함수
+async function loadAllGameData() {
+  console.log('모든 게임 데이터 로딩 시작...');
   
-  // 점수 기반으로 카드 평가
-  let bestCard = null;
-  let bestScore = -1;
-  
-  for (const card of availableCards) {
-    let score = 0;
+  try {
+    // 1. 카드 스탯 데이터 로드 (elements.json과 molecules.json 포함)
+    const cardStatsLoaded = await loadCardStatsData();
     
-    // 1. 공격력이 상대 체력보다 높으면 가산점
-    if (card.atk >= targetCard.hp) {
-      score += 30;
+    if (!cardStatsLoaded) {
+      console.error('카드 스탯 데이터 로드에 실패했습니다.');
+      return false;
+    }
+    
+    // 2. 데이터 로드 상태 확인
+    if (!gameState.elementsData || gameState.elementsData.length === 0) {
+      console.warn('원소 데이터가 로드되지 않았습니다.');
+      return false;
     } else {
-      score += (card.atk / targetCard.hp) * 25;
+      console.log(`원소 데이터 로드됨: ${gameState.elementsData.length}개`);
     }
     
-    // 2. 체력이 상대 공격력보다 높으면 가산점
-    if (card.hp > targetCard.atk) {
-      score += 25;
+    if (!gameState.moleculesData || gameState.moleculesData.length === 0) {
+      console.warn('분자 데이터가 로드되지 않았습니다.');
+      return false;
     } else {
-      score += (card.hp / targetCard.atk) * 20;
+      console.log(`분자 데이터 로드됨: ${gameState.moleculesData.length}개`);
     }
     
-    // 3. 희귀도가 높으면 가산점
-    const rarityScores = {
-      common: 5,
-      uncommon: 10,
-      rare: 15,
-      epic: 20,
-      legendary: 25
-    };
-    score += rarityScores[card.element.rarity || 'common'] || 5;
-    
-    // 4. 분자 또는 특수 효과가 있으면 가산점
-    if (card.isMolecule) {
-      score += 15;
-    }
-    
-    // 최고 점수 카드 선택
-    if (score > bestScore) {
-      bestScore = score;
-      bestCard = card;
-    }
+    console.log('모든 게임 데이터 로딩 완료');
+    return true;
+  } catch (error) {
+    console.error('게임 데이터 로딩 중 오류 발생:', error);
+    return false;
   }
-  
-  return bestCard;
 }
 
-// 합성물 생성 가능성이 높은 카드 찾기
-function findCompatibleCard(existingCard, availableCards) {
-  if (!availableCards || availableCards.length === 0) return null;
+// 연구 레벨에 따른 등장 가능 최대 원소 번호 계산 (기본 1=H, 2=He만, 연구로 확장)
+// 규칙: cap = Math.min(26, 2 + (gameState.fusionSystem?.researchLevel || 0))
+// - 연구 레벨 0: 2 (H, He)
+// - 연구 레벨 n: 2+n (최대 26)
+function getMaxElementNumberByResearch() {
+  // 우선순위: 전용 업그레이드 drawCap 레벨 -> 기존 researchLevel (하위호환)
+  const fs = gameState.fusionSystem || {};
+  const drawCapLevel = (fs.equipment && typeof fs.equipment.drawCap === 'number') ? fs.equipment.drawCap : 0;
+  const fallbackResearchLevel = (typeof fs.researchLevel === 'number') ? fs.researchLevel : 0;
+  const effectiveLevel = Math.max(drawCapLevel, fallbackResearchLevel);
+  const cap = Math.min(26, 2 + effectiveLevel);
+  return cap;
+}
+
+// 현재까지 발견된 최상위 원소 번호 찾기
+function getMaxDiscoveredElementNumber() {
+  let maxNumber = 1; // 최소값은 H(1)
   
-  // 1. 같은 원소를 가진 카드를 우선적으로 찾음 (H2O와 같은 형태 만들기)
-  const element = existingCard.element;
+  console.log('[getMaxDiscoveredElementNumber] 시작');
   
-  for (const card of availableCards) {
-    if (card.element.symbol === element.symbol) {
-      return card;
-    }
-  }
-  
-  // 2. 알려진 분자 조합 확인
-  // 기존 카드가 가진 원소 기호
-  const existingElementSymbol = existingCard.element.symbol;
-  
-  // 결합 가능성이 높은 원소들의 맵
-  const commonCombinations = {
-    'H': ['O', 'N', 'C', 'S'],
-    'O': ['H', 'C', 'N'],
-    'C': ['H', 'O', 'N'],
-    'N': ['H', 'O'],
-    'Cl': ['Na', 'H'],
-    'Na': ['Cl'],
-    'S': ['H', 'O'],
-    'F': ['H'],
-    'K': ['Cl', 'O'],
-    'Li': ['F', 'Cl', 'O']
-  };
-  
-  // 기존 원소와 잘 결합하는 원소 목록
-  const goodMatches = commonCombinations[existingElementSymbol] || [];
-  
-  // 결합 가능성이 높은 카드 찾기
-  for (const match of goodMatches) {
-    for (const card of availableCards) {
-      if (card.element.symbol === match) {
-        return card;
+  // 손패에서 원소 카드 확인
+  if (Array.isArray(gameState.playerHand)) {
+    gameState.playerHand.forEach(card => {
+      if (card && card.element && typeof card.element.number === 'number') {
+        maxNumber = Math.max(maxNumber, card.element.number);
+        console.log('[getMaxDiscoveredElementNumber] 플레이어 손패에서 발견:', card.element.symbol, card.element.number);
       }
-    }
+    });
   }
   
-  // 3. 그 외에는 랜덤 선택
-  if (Math.random() < 0.3) { // 30% 확률로 결합 시도
-    return availableCards[Math.floor(Math.random() * availableCards.length)];
+  // 컴퓨터 손패에서 원소 카드 확인
+  if (Array.isArray(gameState.computerHand)) {
+    gameState.computerHand.forEach(card => {
+      if (card && card.element && typeof card.element.number === 'number') {
+        maxNumber = Math.max(maxNumber, card.element.number);
+        console.log('[getMaxDiscoveredElementNumber] 컴퓨터 손패에서 발견:', card.element.symbol, card.element.number);
+      }
+    });
   }
+  
+  // 전장에 있는 원소 카드 확인
+  if (window.battlefield && Array.isArray(battlefield.lanes)) {
+    battlefield.lanes.forEach(lane => {
+      if (lane && lane.player && lane.player.element && typeof lane.player.element.number === 'number') {
+        maxNumber = Math.max(maxNumber, lane.player.element.number);
+        console.log('[getMaxDiscoveredElementNumber] 전장 플레이어에서 발견:', lane.player.element.symbol, lane.player.element.number);
+      }
+      if (lane && lane.computer && lane.computer.element && typeof lane.computer.element.number === 'number') {
+        maxNumber = Math.max(maxNumber, lane.computer.element.number);
+        console.log('[getMaxDiscoveredElementNumber] 전장 컴퓨터에서 발견:', lane.computer.element.symbol, lane.computer.element.number);
+      }
+    });
+  }
+  
+  // 핵융합 시스템의 재료에서 원소 확인
+  if (gameState.fusionSystem && gameState.fusionSystem.materials) {
+    Object.keys(gameState.fusionSystem.materials).forEach(symbol => {
+      if (gameState.fusionSystem.materials[symbol] > 0) {
+        const element = gameState.elementsData && gameState.elementsData.find ? gameState.elementsData.find(e => e.symbol === symbol) : null;
+        if (element && typeof element.number === 'number') {
+          maxNumber = Math.max(maxNumber, element.number);
+          console.log('[getMaxDiscoveredElementNumber] 핵융합 재료에서 발견:', element.symbol, element.number);
+        }
+      }
+    });
+  }
+  
+  // 온라인 대전에서는 최소 2 (H, He)를 보장
+  const finalMax = Math.max(maxNumber, 2);
+  console.log('[getMaxDiscoveredElementNumber] 최종 결과:', finalMax, '(원본:', maxNumber, ')');
+  
+  return finalMax;
+}
+
+
+// 온라인 게임 관련 변수
+let onlineGameState = {
+  isOnline: false,
+  roomId: '',
+  opponentName: '',
+  socket: null,
+  isHost: false,
+  playerTurnEnded: false,
+  opponentTurnEnded: false,
+  waitingForOpponent: false
+};
+
+// 카드 뽑기 관련 변수 추가
+const drawState = {
+  isDrawing: false,  // 현재 뽑기 진행 중인지
+  queue: []          // 뽑기 대기열
+};
+
+// 통일된 뽑기 시스템 함수들
+function getCurrentDrawCost() {
+  return Math.floor(gameState.baseDrawCost * Math.pow(gameState.costMultiplier, gameState.drawCount));
+}
+
+function getCurrentCardCount() {
+  return Math.floor(gameState.baseCardCount * Math.pow(gameState.cardCountMultiplier, gameState.drawCount));
+}
+
+// 난이도 설정 유틸
+function getDifficultyConfig() {
+  const d = gameState.difficulty || 'normal';
+  if (d === 'easy') {
+    return {
+      mistakeChance: 0.7,      // 더 자주 실수
+      chooseTopK: 4,           // 상위 4개 중 랜덤
+      aggressionBonus: 0.5,    // 공격 성향 더 약함
+      thinkDelayMs: 1000,      // 더 짧게 생각
+      drawThreshold: 8         // 손패 8장 미만이면 뽑기 선호 (더 자주 뽑기)
+    };
+  }
+  if (d === 'hard') {
+    return {
+      mistakeChance: 0.15,     // 약간의 실수
+      chooseTopK: 2,           // 상위 2개 중 선택
+      aggressionBonus: 1.2,    // 공격 성향 약간 강함
+      thinkDelayMs: 1800,      // 조금 더 오래 생각
+      drawThreshold: 7         // 손패 7장 미만이면 뽑기 선호 (더 자주 뽑기)
+    };
+  }
+  return {
+    mistakeChance: 0.4,        // 더 자주 실수
+    chooseTopK: 3,             // 상위 3개 중 선택
+    aggressionBonus: 0.8,      // 공격 성향 약함
+    thinkDelayMs: 1200,        // 조금 더 짧게 생각
+    drawThreshold: 7           // 손패 7장 미만이면 뽑기 선호 (더 자주 뽑기)
+  };
+}
+
+// 특수 능력 시스템
+function processSpecialAbilities(card, targetCards, isPlayerCard) {
+  if (!card.specialAbilities) return;
+  
+  card.specialAbilities.forEach(ability => {
+    if (checkAbilityCondition(ability, card, targetCards, isPlayerCard)) {
+      executeSpecialAbility(ability, card, targetCards, isPlayerCard);
+    }
+  });
+}
+
+function checkAbilityCondition(ability, card, targetCards, isPlayerCard) {
+  if (!ability || !ability.condition) return false;
+  
+  switch (ability.condition) {
+    case 'allies_count >= 3':
+      return isPlayerCard ? gameState.playerHand.length >= 3 : gameState.computerHand.length >= 3;
+    case 'enemies_count >= 2':
+      return isPlayerCard ? gameState.computerHand.length >= 2 : gameState.playerHand.length >= 2;
+    case 'has_status_effect':
+      return targetCards.some(target => target.statusEffects && target.statusEffects.length > 0);
+    case 'water_present':
+      return targetCards.some(target => target.id === 'h2o');
+    case 'water_contact':
+      return targetCards.some(target => target.id === 'h2o');
+    case 'metal_target':
+      return targetCards.some(target => target.category === '금속' || target.category === '전이 금속');
+    case 'turn_start':
+      return true; // 매 턴 시작 시
+    case 'on_attack':
+      return targetCards && targetCards.length > 0;
+    case 'on_damage':
+      return true;
+    case 'on_death':
+      return card && card.hp <= 0;
+    case 'on_kill':
+      return targetCards && targetCards.some(target => target.hp <= 0);
+    case 'on_skill_use':
+      return true; // 스킬 사용 시
+    case 'allies_with_status':
+      const allies = isPlayerCard ? gameState.playerHand : gameState.computerHand;
+      return allies.some(ally => ally.statusEffects && ally.statusEffects.length > 0);
+    case 'ally_takes_damage':
+      return true; // 아군이 피해를 받을 때
+    case 'always':
+      return true;
+    default:
+      return false;
+  }
+}
+
+// 카드 객체로부터 DOM 요소를 찾는 함수
+function findCardElement(card) {
+  if (!card || !card.id) return null;
+  
+  // 전장에서 카드 찾기
+  const battlefieldCard = document.querySelector(`[data-card-id="${card.id}"]`);
+  if (battlefieldCard) return battlefieldCard;
+  
+  // 손패에서 카드 찾기
+  const handCard = document.querySelector(`#${card.id}`);
+  if (handCard) return handCard;
   
   return null;
 }
 
-// 기지 자동 회복
-function healBases() {
-  // 플레이어 기지 회복
-  battlefield.bases.player.hp = Math.min(
-    battlefield.bases.player.maxHp, 
-    battlefield.bases.player.hp + BASE_HEALING_RATE
-  );
+function executeSpecialAbility(ability, card, targetCards, isPlayerCard) {
+  if (!ability || !ability.effect) return;
   
-  // 컴퓨터 기지 회복
-  battlefield.bases.computer.hp = Math.min(
-    battlefield.bases.computer.maxHp, 
-    battlefield.bases.computer.hp + BASE_HEALING_RATE
-  );
+  // 특수능력 발동 시 카드 애니메이션 트리거
+  const cardElement = findCardElement(card);
+  if (cardElement && window.playSpecialAbilityCardAnimation) {
+    // 특수능력 이름 가져오기 (매핑된 이름 우선, 없으면 원본 이름 사용)
+    const abilityName = ability.name || ability.effect;
+    window.playSpecialAbilityCardAnimation(cardElement, abilityName);
+  }
   
-  // 기지 표시 업데이트
-  updateBaseDisplay();
-}
-
-function executeBattles() {
-  let battleResults = [];
+  // 특수능력 효과 애니메이션을 위한 지연
+  setTimeout(() => {
+    if (cardElement && window.playSpecialAbilityEffectAnimation) {
+      const abilityName = ability.name || ability.effect;
+      window.playSpecialAbilityEffectAnimation(abilityName, cardElement, ability.value);
+    }
+  }, 200);
   
-  battlefield.lanes.forEach((lane, laneIndex) => {
-    const playerCard = lane.player;
-    const computerCard = lane.computer;
-    
-    // 카드 vs 카드 전투
-    if (playerCard && computerCard && !playerCard.isSkull && !computerCard.isSkull) {
-      const playerAttackResult = executeAttack(playerCard, computerCard);
-      const computerAttackResult = executeAttack(computerCard, playerCard);
-      
-      battleResults.push({
-        lane: laneIndex,
-        playerAttack: playerAttackResult,
-        computerAttack: computerAttackResult
+  switch (ability.effect) {
+    // 기존 효과들
+    case 'heal_all_allies':
+      const allies = isPlayerCard ? gameState.playerHand : gameState.computerHand;
+      allies.forEach(ally => {
+        if (ally && typeof ally.hp === 'number') {
+          ally.hp = Math.min(ally.hp + ability.value, ally.baseStats ? ally.baseStats.hp : ally.maxHp);
+        }
       });
-      
-      // 컴퓨터 카드 파괴
-      if (computerCard.hp <= 0) {
-        const coinReward = computerCard.element.rewardCoins || 5;
-        addCoins(coinReward);
-        gameState.playerScore += 1;
-        
-        const skullCard = createSkullCard('computer', computerCard.element);
-        battlefield.lanes[laneIndex].computer = skullCard;
-        
-        // 파괴 이펙트
-        showCardDestroyEffect(computerCard, laneIndex);
+      break;
+    case 'cleanse_all_status':
+      const alliesToCleanse = isPlayerCard ? gameState.playerHand : gameState.computerHand;
+      alliesToCleanse.forEach(ally => {
+        if (ally && ally.statusEffects) {
+          ally.statusEffects = [];
+        }
+      });
+      break;
+    case 'weaken_all_enemies':
+      const enemies = isPlayerCard ? gameState.computerHand : gameState.playerHand;
+      enemies.forEach(enemy => {
+        if (enemy && typeof enemy.atk === 'number') {
+          enemy.atk = Math.max(enemy.atk - ability.value, 1);
+        }
+      });
+      break;
+    case 'acid_damage':
+      targetCards.forEach(target => {
+        if (target && target.id === 'h2o' && typeof target.hp === 'number') {
+          target.hp -= ability.value;
+        }
+      });
+      break;
+    case 'explosive_damage':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          target.hp -= ability.value;
+        }
+      });
+      break;
+    case 'dehydration':
+      targetCards.forEach(target => {
+        if (target) {
+          if (!target.statusEffects) target.statusEffects = [];
+          target.statusEffects.push({
+            type: 'dehydration',
+            value: ability.value,
+            duration: ability.duration
+          });
+        }
+      });
+      break;
+    case 'metal_corrosion':
+      targetCards.forEach(target => {
+        if (target && (target.category === '금속' || target.category === '전이 금속') && typeof target.hp === 'number') {
+          target.hp -= ability.value * 3;
+        }
+      });
+      break;
+    case 'boost_all_allies':
+      const alliesToBoost = isPlayerCard ? gameState.playerHand : gameState.computerHand;
+      alliesToBoost.forEach(ally => {
+        if (ally) {
+          ally.tempBoost = ability.value;
+          ally.tempBoostDuration = ability.duration;
+        }
+      });
+      break;
+    case 'accelerate_healing':
+      const alliesToHeal = isPlayerCard ? gameState.playerHand : gameState.computerHand;
+      alliesToHeal.forEach(ally => {
+        if (ally && ally.statusEffects && ally.statusEffects.length > 0) {
+          ally.healingMultiplier = ability.value;
+        }
+      });
+      break;
+    case 'damage_transfer':
+      // 아군이 피해를 받을 때 포도당이 대신 받는 로직
+      break;
+
+    // 새로운 분자 특수능력들
+    case 'shield_generation':
+      if (card && typeof card.hp === 'number') {
+        const shieldAmount = Math.floor(card.maxHp * ability.value / 100);
+        if (!card.shield) card.shield = 0;
+        card.shield += shieldAmount;
+        playMoleculeSpecialAnimation('heal_over_time');
       }
+      break;
       
-      // 플레이어 카드 파괴
-      if (playerCard.hp <= 0) {
-        gameState.computerScore += 1;
-        
-        const skullCard = createSkullCard('player', playerCard.element);
-        battlefield.lanes[laneIndex].player = skullCard;
-        
-        // 파괴 이펙트
-        showCardDestroyEffect(playerCard, laneIndex);
+    case 'electric_resistance':
+      if (card) {
+        if (!card.resistances) card.resistances = {};
+        card.resistances.electric = (card.resistances.electric || 0) + ability.value;
       }
+      break;
       
-      // 손상된 카드는 마지막 데미지 턴 업데이트
-      if (computerCard.hp < computerCard.maxHp) {
-        computerCard.lastDamageTurn = gameState.turnCount;
-      }
-      if (playerCard.hp < playerCard.maxHp) {
-        playerCard.lastDamageTurn = gameState.turnCount;
-      }
+    case 'electric_immunity':
+      const alliesForImmunity = isPlayerCard ? gameState.playerHand : gameState.computerHand;
+      alliesForImmunity.forEach(ally => {
+        if (ally) {
+          if (!ally.tempEffects) ally.tempEffects = {};
+          ally.tempEffects.electricImmunity = {
+            value: ability.value,
+            duration: ability.duration || 2
+          };
+        }
+      });
+      playMoleculeSpecialAnimation('freeze');
+      break;
       
-      checkChemicalReactions(laneIndex);
-    }
-    // 플레이어 카드가 있고 컴퓨터 카드가 없거나 해골 카드인 경우
-    else if (playerCard && !playerCard.isSkull && (!computerCard || computerCard.isSkull)) {
-      // 컴퓨터 기지 직접 공격
-      const damage = calculateBaseDamage(playerCard);
-      damageBase('computer', damage);
-      showMessage(`${playerCard.element.name} 카드가 적 기지에 ${damage}의 피해를 입혔습니다!`, 'success');
-    }
-    // 컴퓨터 카드가 있고 플레이어 카드가 없거나 해골 카드인 경우
-    else if (computerCard && !computerCard.isSkull && (!playerCard || playerCard.isSkull)) {
-      // 플레이어 기지 직접 공격
-      const damage = calculateBaseDamage(computerCard);
-      damageBase('player', damage);
-      showMessage(`적 ${computerCard.element.name} 카드가 기지에 ${damage}의 피해를 입혔습니다!`, 'error');
-    }
-  });
-  
-  updateScoreDisplay();
-  renderBattlefield();
+    case 'physical_resistance':
+      if (card) {
+        if (!card.resistances) card.resistances = {};
+        card.resistances.physical = (card.resistances.physical || 0) + ability.value;
+      }
+      break;
+      
+    case 'damage_reflection':
+      if (card) {
+        if (!card.reflectDamage) card.reflectDamage = 0;
+        card.reflectDamage += ability.value;
+      }
+      break;
+      
+    case 'defense_reduction':
+      targetCards.forEach(target => {
+        if (target) {
+          if (!target.statusEffects) target.statusEffects = [];
+          target.statusEffects.push({
+            type: 'defense_reduction',
+            value: ability.value,
+            duration: ability.duration || 2
+          });
+        }
+      });
+      playMoleculeSpecialAnimation('acid_damage');
+      break;
+      
+    case 'armor_piercing':
+      if (card) {
+        if (!card.armorPiercing) card.armorPiercing = 0;
+        card.armorPiercing += ability.value;
+      }
+      break;
+      
+    case 'corrosion_damage':
+      targetCards.forEach(target => {
+        if (target) {
+          if (!target.statusEffects) target.statusEffects = [];
+          target.statusEffects.push({
+            type: 'corrosion',
+            value: ability.value,
+            duration: ability.duration || 2
+          });
+        }
+      });
+      playMoleculeSpecialAnimation('corrosive');
+      break;
+      
+    case 'poison_damage':
+      targetCards.forEach(target => {
+        if (target) {
+          if (!target.statusEffects) target.statusEffects = [];
+          target.statusEffects.push({
+            type: 'poison',
+            value: ability.value,
+            duration: ability.duration || 3
+          });
+        }
+      });
+      playMoleculeSpecialAnimation('poison');
+      break;
+      
+    case 'spread_poison':
+      // 인접한 적들에게 독성 전파
+      const adjacentTargets = getAdjacentTargets(card, isPlayerCard);
+      adjacentTargets.forEach(target => {
+        if (target) {
+          if (!target.statusEffects) target.statusEffects = [];
+          target.statusEffects.push({
+            type: 'corrosion',
+            value: ability.value * 10, // 2중첩 = 20%
+            duration: 2
+          });
+        }
+      });
+      playMoleculeSpecialAnimation('poison');
+      break;
+      
+    case 'fire_damage_boost':
+      if (card) {
+        if (!card.damageBoosts) card.damageBoosts = {};
+        card.damageBoosts.fire = (card.damageBoosts.fire || 0) + ability.value;
+      }
+      break;
+      
+    case 'oxidation_damage':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(target.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('explosive');
+      break;
+      
+    case 'reactive_oxygen':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(target.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('explosive');
+      break;
+      
+    case 'thermal_explosion':
+      const explosionTargets = isPlayerCard ? gameState.computerHand : gameState.playerHand;
+      explosionTargets.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('explosive');
+      break;
+      
+    case 'thermionic_emission':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('explosive');
+      break;
+      
+    case 'salt_synergy':
+      const saltAllies = isPlayerCard ? gameState.playerHand : gameState.computerHand;
+      saltAllies.forEach(ally => {
+        if (ally && ally.category === '염(무기염)') {
+          if (!ally.tempBoosts) ally.tempBoosts = {};
+          ally.tempBoosts.atk = (ally.tempBoosts.atk || 0) + ability.value;
+          if (ability.duration) {
+            ally.tempBoosts.atkDuration = ability.duration;
+          }
+        }
+      });
+      playMoleculeSpecialAnimation('heal_over_time');
+      break;
+      
+    case 'base_catalyst':
+      const baseAllies = isPlayerCard ? gameState.playerHand : gameState.computerHand;
+      baseAllies.forEach(ally => {
+        if (ally && ally.category === '염기') {
+          if (!ally.tempBoosts) ally.tempBoosts = {};
+          ally.tempBoosts.atk = (ally.tempBoosts.atk || 0) + ability.value;
+        }
+      });
+      playMoleculeSpecialAnimation('heal_over_time');
+      break;
+      
+    case 'doping_synergy':
+      const semiconductorAllies = isPlayerCard ? gameState.playerHand : gameState.computerHand;
+      semiconductorAllies.forEach(ally => {
+        if (ally && ally.category === '반도체') {
+          if (!ally.tempBoosts) ally.tempBoosts = {};
+          ally.tempBoosts.atk = (ally.tempBoosts.atk || 0) + ability.value;
+        }
+      });
+      playMoleculeSpecialAnimation('heal_over_time');
+      break;
+      
+    case 'catalyst_synergy':
+      if (card) {
+        if (!card.catalystBoost) card.catalystBoost = 0;
+        card.catalystBoost += ability.value;
+      }
+      break;
+      
+    case 'energy_recovery':
+      if (isPlayerCard && gameState.energy < gameState.maxEnergy) {
+        gameState.energy = Math.min(gameState.energy + ability.value, gameState.maxEnergy);
+      }
+      playMoleculeSpecialAnimation('heal_over_time');
+      break;
+      
+    case 'skill_cooldown_reduction':
+      const skillAllies = isPlayerCard ? gameState.playerHand : gameState.computerHand;
+      skillAllies.forEach(ally => {
+        if (ally) {
+          if (!ally.skillCooldownReduction) ally.skillCooldownReduction = 0;
+          ally.skillCooldownReduction += ability.value;
+        }
+      });
+      playMoleculeSpecialAnimation('heal_over_time');
+      break;
+      
+    case 'acid_catalyst':
+      if (card) {
+        if (!card.skillCooldownReduction) card.skillCooldownReduction = 0;
+        card.skillCooldownReduction += ability.value;
+      }
+      break;
+      
+    case 'debuff_amplification':
+      if (card) {
+        if (!card.debuffAmplification) card.debuffAmplification = 0;
+        card.debuffAmplification += ability.value;
+      }
+      break;
+      
+    case 'organic_hunter':
+      if (card) {
+        if (!card.damageBoosts) card.damageBoosts = {};
+        card.damageBoosts.organic = (card.damageBoosts.organic || 0) + ability.value;
+      }
+      break;
+      
+    case 'buff_removal':
+      targetCards.forEach(target => {
+        if (target && target.buffs && target.buffs.length > 0) {
+          target.buffs.splice(0, ability.value);
+        }
+      });
+      playMoleculeSpecialAnimation('acid_damage');
+      break;
+      
+    case 'cleanse_debuffs':
+      const cleanseAllies = isPlayerCard ? gameState.playerHand : gameState.computerHand;
+      cleanseAllies.forEach(ally => {
+        if (ally && ally.statusEffects) {
+          ally.statusEffects = [];
+        }
+      });
+      playMoleculeSpecialAnimation('heal_over_time');
+      break;
+      
+    case 'gas_cloud':
+      // 혼탁 지대 생성 (구현 필요)
+      createGasCloud(card, ability.duration || 1);
+      playMoleculeSpecialAnimation('poison');
+      break;
+      
+    case 'halogen_dome':
+    case 'fluorine_dome':
+      if (card) {
+        if (!card.accuracyReduction) card.accuracyReduction = 0;
+        card.accuracyReduction += ability.value;
+      }
+      break;
+      
+    case 'smoke_screen':
+      targetCards.forEach(target => {
+        if (target) {
+          if (!target.statusEffects) target.statusEffects = [];
+          target.statusEffects.push({
+            type: 'accuracy_reduction',
+            value: ability.value,
+            duration: ability.duration || 2
+          });
+        }
+      });
+      playMoleculeSpecialAnimation('poison');
+      break;
+      
+    case 'spread_effect':
+      // 효과 확산 (구현 필요)
+      spreadEffect(card, ability.value);
+      playMoleculeSpecialAnimation('explosive');
+      break;
+      
+    case 'inert_immunity':
+    case 'noble_gas_immunity':
+    case 'inactive_immunity':
+      if (card) {
+        if (!card.immunities) card.immunities = [];
+        card.immunities.push('oxidation', 'reduction');
+      }
+      break;
+      
+    case 'inert_penetration':
+      if (card) {
+        if (!card.immunityPenetration) card.immunityPenetration = 0;
+        card.immunityPenetration += ability.value;
+      }
+      break;
+      
+    case 'solvent_effect':
+      if (card) {
+        if (!card.solventBoost) card.solventBoost = 0;
+        card.solventBoost += ability.value;
+      }
+      break;
+      
+    case 'fuel_rod':
+      if (card) {
+        if (!card.fuelRodBoost) card.fuelRodBoost = 0;
+        card.fuelRodBoost += ability.value;
+      }
+      break;
+      
+    case 'nuclear_chemistry':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('explosive');
+      break;
+      
+    case 'electrolyte_boost':
+      if (card) {
+        if (!card.electrolyteBoost) card.electrolyteBoost = 0;
+        card.electrolyteBoost += ability.value;
+      }
+      break;
+      
+    case 'catalyst_boost':
+      if (card) {
+        if (!card.catalystBoost) card.catalystBoost = 0;
+        card.catalystBoost += ability.value;
+      }
+      break;
+      
+    case 'lipophilic_effect':
+      if (card) {
+        if (!card.lipophilicBoost) card.lipophilicBoost = 0;
+        card.lipophilicBoost += ability.value;
+      }
+      break;
+      
+    case 'coating_effect':
+      if (card) {
+        if (!card.coatingBoost) card.coatingBoost = 0;
+        card.coatingBoost += ability.value;
+      }
+      break;
+      
+    case 'chromate_cycle':
+      if (card) {
+        if (!card.chromateCycle) card.chromateCycle = 0;
+        card.chromateCycle += ability.value;
+      }
+      break;
+      
+    case 'deoxygenation':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('explosive');
+      break;
+      
+    case 'volatile_vapor':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('explosive');
+      break;
+      
+    // 고급 특수 효과들
+    case 'high_k_barrier':
+      if (card) {
+        if (!card.barrierBoost) card.barrierBoost = 0;
+        card.barrierBoost += ability.value;
+      }
+      break;
+      
+    case 'pi_stacking':
+      if (card) {
+        if (!card.piStacking) card.piStacking = 0;
+        card.piStacking += ability.value;
+      }
+      break;
+      
+    case 'hydrolysis':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('acid_damage');
+      break;
+      
+    case 'metal_carbon_bond':
+      if (card) {
+        if (!card.metalCarbonBond) card.metalCarbonBond = 0;
+        card.metalCarbonBond += ability.value;
+      }
+      break;
+      
+    case 'lewis_capture':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('acid_damage');
+      break;
+      
+    case 'anesthetic_toxicity':
+      targetCards.forEach(target => {
+        if (target) {
+          if (!target.statusEffects) target.statusEffects = [];
+          target.statusEffects.push({
+            type: 'anesthetic_poison',
+            value: ability.value,
+            duration: ability.duration || 3
+          });
+        }
+      });
+      playMoleculeSpecialAnimation('poison');
+      break;
+      
+    case 'sandwich_bonding':
+      if (card) {
+        if (!card.sandwichBonding) card.sandwichBonding = 0;
+        card.sandwichBonding += ability.value;
+      }
+      break;
+      
+    case 'sandwich_stability':
+      if (card) {
+        if (!card.sandwichStability) card.sandwichStability = 0;
+        card.sandwichStability += ability.value;
+      }
+      break;
+      
+    case 'hydrogenation':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('heal_over_time');
+      break;
+      
+    case 'alkyl_radical':
+      if (card) {
+        if (!card.criticalChance) card.criticalChance = 0;
+        card.criticalChance += ability.value;
+      }
+      break;
+      
+    case 'self_oxidation':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('explosive');
+      break;
+      
+    case 'cryogenic_gas':
+      targetCards.forEach(target => {
+        if (target) {
+          if (!target.statusEffects) target.statusEffects = [];
+          target.statusEffects.push({
+            type: 'freeze',
+            value: ability.value,
+            duration: 2
+          });
+        }
+      });
+      playMoleculeSpecialAnimation('freeze');
+      break;
+      
+    case 'electron_resonance':
+      if (card) {
+        if (!card.electronResonance) card.electronResonance = 0;
+        card.electronResonance += ability.value;
+      }
+      break;
+      
+    case 'electron_donor':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('heal_over_time');
+      break;
+      
+    case 'electron_scavenger':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('acid_damage');
+      break;
+      
+    case 'electron_deficiency':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('acid_damage');
+      break;
+      
+    case 'delayed_toxicity':
+      targetCards.forEach(target => {
+        if (target) {
+          if (!target.statusEffects) target.statusEffects = [];
+          target.statusEffects.push({
+            type: 'delayed_poison',
+            value: ability.value,
+            duration: ability.duration || 4
+          });
+        }
+      });
+      playMoleculeSpecialAnimation('poison');
+      break;
+      
+    case 'lipid_solubility':
+      if (card) {
+        if (!card.lipidSolubility) card.lipidSolubility = 0;
+        card.lipidSolubility += ability.value;
+      }
+      break;
+      
+    case 'super_fluorination':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('acid_damage');
+      break;
+      
+    case 'super_acid':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('acid_damage');
+      break;
+      
+    case 'ultra_hardness':
+      if (card) {
+        if (!card.ultraHardness) card.ultraHardness = 0;
+        card.ultraHardness += ability.value;
+      }
+      break;
+      
+    case 'wide_bandgap':
+      if (card) {
+        if (!card.wideBandgap) card.wideBandgap = 0;
+        card.wideBandgap += ability.value;
+      }
+      break;
+      
+    case 'coordination_shift':
+      targetCards.forEach(target => {
+        if (target && typeof target.hp === 'number') {
+          const damage = Math.floor(card.atk * ability.value / 100);
+          target.hp -= damage;
+        }
+      });
+      playMoleculeSpecialAnimation('heal_over_time');
+      break;
+      
+    case 'light_pigment':
+      if (card) {
+        if (!card.lightPigment) card.lightPigment = 0;
+        card.lightPigment += ability.value;
+      }
+      break;
+      
+    case 'photocatalyst_initiation':
+      if (card) {
+        if (!card.photocatalystInitiation) card.photocatalystInitiation = 0;
+        card.photocatalystInitiation += ability.value;
+      }
+      playMoleculeSpecialAnimation('heal_over_time');
+      break;
+      
+    default:
+      console.warn('알 수 없는 특수능력:', ability.effect);
+      break;
+  }
 }
 
-// 기본 공격 피해 계산 (소수점 첫째자리까지만)
-function calculateBaseDamage(card) {
-  // 기본 공격력 + 카드 공격력의 일부
-  let damage = BASE_ATTACK_DAMAGE + Math.floor(card.atk / 2 * 10) / 10;
-  
-  // 특수 능력이나 업그레이드에 따른 추가 피해
-  if (card.element.baseAttackBonus) {
-    damage += Math.floor(card.element.baseAttackBonus * 10) / 10;
-  }
-  
-  // 업그레이드된 카드 추가 피해
-  const elementId = card.element.symbol;
-  if (gameState.upgrades.elements[elementId] && 
-      gameState.upgrades.elements[elementId].level > 0) {
-    damage += gameState.upgrades.elements[elementId].level;
-  }
-  
-  return Math.floor(damage * 10) / 10;
+// 인접한 대상들을 찾는 함수
+function getAdjacentTargets(card, isPlayerCard) {
+  const targets = [];
+  // 전장에서 인접한 카드들을 찾는 로직 (구현 필요)
+  return targets;
 }
 
-function endGame(isVictory, message) {
-  gameState.isGameActive = false;
+// 가스 구름 생성 함수
+function createGasCloud(card, duration) {
+  // 혼탁 지대 생성 로직 (구현 필요)
+  console.log('가스 구름 생성:', duration);
+}
+
+// 효과 확산 함수
+function spreadEffect(card, value) {
+  // 효과 확산 로직 (구현 필요)
+  console.log('효과 확산:', value);
+}
+
+// 상성 시스템
+function calculateAffinityDamage(attacker, defender) {
+  let damageMultiplier = 1;
   
-  const resultModal = document.getElementById('game-result-modal');
-  const resultTitle = document.getElementById('result-title');
-  const resultMessage = document.getElementById('result-message-detail');
-  
-  if (isVictory) {
-    resultTitle.textContent = '승리!';
-    resultTitle.className = 'text-4xl font-bold mb-4 text-green-500';
-    resultMessage.textContent = message || '적 과학 기지를 파괴하여 승리했습니다!';
+  if (attacker.affinities && defender.category) {
+    // 강한 상성 체크
+    if (attacker.affinities.strong_against && 
+        attacker.affinities.strong_against.includes(defender.category)) {
+      damageMultiplier *= 1.5;
+    }
     
-    // 승리 보상 지급
-    const victoryReward = 50;
-    addCoins(victoryReward);
-  } else {
-    resultTitle.textContent = '패배...';
-    resultTitle.className = 'text-4xl font-bold mb-4 text-red-500';
-    resultMessage.textContent = message || '과학 기지가 파괴되었습니다.';
+    // 약한 상성 체크
+    if (attacker.affinities.weak_against && 
+        attacker.affinities.weak_against.includes(defender.category)) {
+      damageMultiplier *= 0.7;
+    }
   }
   
-  resultModal.classList.remove('hidden');
-  
-  document.getElementById('new-game-btn').addEventListener('click', function() {
-    resultModal.classList.add('hidden');
-    resetGame();
-  });
+  return damageMultiplier;
 }
 
-function resetGame() {
+// 시너지 시스템
+function checkSynergy(card1, card2) {
+  if (!card1.affinities || !card2.affinities) return false;
+  
+  const synergy1 = card1.affinities.synergy_with || [];
+  const synergy2 = card2.affinities.synergy_with || [];
+  
+  return synergy1.some(type => synergy2.includes(type));
+}
+
+function applySynergyBonus(cards) {
+  const bonuses = [];
+  
+  for (let i = 0; i < cards.length; i++) {
+    for (let j = i + 1; j < cards.length; j++) {
+      if (checkSynergy(cards[i], cards[j])) {
+        bonuses.push({
+          cards: [cards[i], cards[j]],
+          bonus: 1.2 // 20% 보너스
+        });
+      }
+    }
+  }
+  
+  return bonuses;
+}
+
+function getRarityChances() {
+  const drawCount = gameState.drawCount;
+  
+  // 뽑기 횟수가 많아질수록 더 좋은 등급의 확률이 증가 (더 관대한 확률)
+  if (drawCount < 3) {
+    // 초기: 더 좋은 카드 확률 증가
+    return { common: 50, uncommon: 35, rare: 12, epic: 2.5, legendary: 0.5 };
+  } else if (drawCount < 6) {
+    // 중기: 더 좋은 카드 확률 증가
+    return { common: 30, uncommon: 40, rare: 20, epic: 8, legendary: 2 };
+  } else if (drawCount < 10) {
+    // 후기: 더 좋은 카드 확률 증가
+    return { common: 15, uncommon: 25, rare: 35, epic: 20, legendary: 5 };
+  } else {
+    // 최종: 더 좋은 카드 확률 증가
+    return { common: 5, uncommon: 15, rare: 30, epic: 35, legendary: 15 };
+  }
+}
+
+// 턴 진행에 따른 희귀도 확률 조정 함수
+function adjustRarityChancesForTurn(baseChances, turnCount) {
+  const adjustedChances = { ...baseChances };
+  
+  // 턴이 진행될수록 고급 등급 확률 증가
+  const turnBonus = Math.min(0.3, (turnCount - 1) * 0.02); // 턴마다 2%씩 증가, 최대 30%
+  
+  // common 확률 감소
+  adjustedChances.common = Math.max(5, adjustedChances.common - turnBonus * 20);
+  
+  // uncommon 확률 약간 증가
+  adjustedChances.uncommon = Math.min(50, adjustedChances.uncommon + turnBonus * 10);
+  
+  // rare 확률 증가
+  adjustedChances.rare = Math.min(45, adjustedChances.rare + turnBonus * 15);
+  
+  // epic 확률 증가
+  adjustedChances.epic = Math.min(40, adjustedChances.epic + turnBonus * 8);
+  
+  // legendary 확률 증가
+  adjustedChances.legendary = Math.min(20, adjustedChances.legendary + turnBonus * 5);
+  
+  // 확률 합계가 100이 되도록 정규화
+  const total = Object.values(adjustedChances).reduce((sum, chance) => sum + chance, 0);
+  for (const rarity in adjustedChances) {
+    adjustedChances[rarity] = (adjustedChances[rarity] / total) * 100;
+  }
+  
+  return adjustedChances;
+}
+
+const BASE_ATTACK_DAMAGE = 2; // Reduced base damage for longer games
+const BASE_HEALING_RATE = 8; // Increased base healing for longer games
+
+// --- ADDED UI Functions ---
+
+function updateScoreDisplay() {
+  console.log("updateScoreDisplay: Updating scores..."); // Add log
+  const playerScoreEl = document.getElementById('player-score');
+  const computerScoreEl = document.getElementById('computer-score');
+  if (playerScoreEl) {
+      playerScoreEl.textContent = gameState.playerScore;
+  } else {
+      console.error("updateScoreDisplay: Player score element not found!");
+  }
+  if (computerScoreEl) {
+      computerScoreEl.textContent = gameState.computerScore;
+  } else {
+      console.error("updateScoreDisplay: Computer score element not found!");
+  }
+  console.log("updateScoreDisplay: Scores updated.");
+}
+
+function updateTurnIndicator() {
+  console.log("updateTurnIndicator: Updating turn message...", {
+    turnCount: gameState.turnCount,
+    isPlayerTurn: gameState.isPlayerTurn,
+    isOnline: onlineGameState.isOnline
+  });
+  
+  const resultMessage = document.getElementById('result-message');
+  if (!resultMessage) {
+      console.error("updateTurnIndicator: Result message element not found!");
+      return;
+  }
+
+  if (gameState.isPlayerTurn) {
+    resultMessage.textContent = `${gameState.turnCount}턴: 플레이어 차례`;
+    resultMessage.className = 'text-center text-xl font-bold h-12 text-blue-400';
+    console.log("updateTurnIndicator: 플레이어 차례로 설정됨");
+  } else {
+    // 온라인 모드인지 확인하여 적절한 메시지 표시
+    if (onlineGameState.isOnline) {
+      resultMessage.textContent = `${gameState.turnCount}턴: 상대방 차례`;
+      console.log("updateTurnIndicator: 상대방 차례로 설정됨 (온라인)");
+    } else {
+      resultMessage.textContent = `${gameState.turnCount}턴: 컴퓨터 차례`;
+      console.log("updateTurnIndicator: 컴퓨터 차례로 설정됨 (오프라인)");
+    }
+    resultMessage.className = 'text-center text-xl font-bold h-12 text-red-400';
+  }
+  console.log("updateTurnIndicator: Turn message updated to:", resultMessage.textContent);
+}
+
+// --- End ADDED UI Functions ---
+
+// 원소 능력치 스케일 함수: JSON 데이터를 사용하여 계산
+function getElementStage(elementNumber) {
+  if (elementNumber <= 10) return 0;
+  if (elementNumber <= 20) return 1;
+  if (elementNumber <= 40) return 2;
+  if (elementNumber <= 70) return 3;
+  return 4;
+}
+
+function computeElementStats(element, rarity) {
+  // JSON 데이터가 로드되지 않은 경우 기본값 사용
+  if (!gameState.cardStatsData) {
+    console.warn('카드 스탯 데이터가 로드되지 않았습니다. 기본값을 사용합니다.');
+    return computeElementStatsFallback(element, rarity);
+  }
+
+  const statsData = gameState.cardStatsData;
+  const number = element?.number || 1;
+  const stage = getElementStage(number);
+  const stageMultiplier = statsData.stageMultipliers[stage.toString()] || Math.pow(1.3, stage);
+
+  // 희귀도 배수 조정
+  const rarityMultipliers = statsData.rarityMultipliers;
+  const rarityMul = rarityMultipliers[rarity || element?.rarity || 'common'] || 1.0;
+
+  // 우선순위에 따른 기본 스탯 결정
+  let baseHp, baseAtk;
+  
+  // 1순위: elements.json의 baseHp, baseAtk 사용 (이미 로드된 경우)
+  if (element.baseHp !== undefined && element.baseAtk !== undefined) {
+    baseHp = element.baseHp;
+    baseAtk = element.baseAtk;
+  }
+  // 2순위: card_stats.json의 specialElements 사용
+  else if (element?.symbol && statsData.specialElements[element.symbol]) {
+    const specialElement = statsData.specialElements[element.symbol];
+    baseHp = specialElement.baseHp;
+    baseAtk = specialElement.baseAtk;
+  }
+  // 3순위: 기본 공식 사용
+  else {
+    const baseStats = statsData.baseStats;
+    baseHp = baseStats.baseHp + Math.floor(Math.pow(number, baseStats.hpGrowthRate));
+    baseAtk = baseStats.baseAtk + Math.floor(Math.pow(number, baseStats.atkGrowthRate));
+  }
+
+  // 카테고리 보너스 적용
+  const category = element?.category;
+  let categoryHpMultiplier = 1.0;
+  let categoryAtkMultiplier = 1.0;
+  
+  if (category && statsData.categoryBonuses[category]) {
+    const categoryBonus = statsData.categoryBonuses[category];
+    categoryHpMultiplier = categoryBonus.hpMultiplier;
+    categoryAtkMultiplier = categoryBonus.atkMultiplier;
+  }
+
+  let hp = Math.floor(baseHp * stageMultiplier * rarityMul * categoryHpMultiplier);
+  let atk = Math.floor(baseAtk * stageMultiplier * rarityMul * categoryAtkMultiplier);
+
+  // 결정론적(난수 없는) ±10% 변동: 원소번호+희귀도로부터 고정 배율 생성
+  const rarityKey = (rarity || element?.rarity || 'common');
+  let rarityHash = 0;
+  for (let i = 0; i < rarityKey.length; i++) {
+    rarityHash = ((rarityHash << 5) - rarityHash) + rarityKey.charCodeAt(i);
+    rarityHash |= 0;
+  }
+  const seed = (number * 131 + (rarityHash >>> 0)) >>> 0;
+  const t = (seed % 1000) / 1000; // 0.000 ~ 0.999
+  const varianceRange = statsData.varianceRange;
+  const variance = varianceRange.min + t * (varianceRange.max - varianceRange.min);
+
+  hp = Math.max(1, Math.floor(hp * variance));
+  atk = Math.max(1, Math.floor(atk * variance));
+
+  return { hp, atk };
+}
+
+// JSON 데이터가 없을 때 사용하는 폴백 함수
+function computeElementStatsFallback(element, rarity) {
+  const number = element?.number || 1;
+  const stage = getElementStage(number);
+  const stageMultiplier = Math.pow(1.3, stage);
+
+  // 희귀도 배수 조정 (더 균형잡힌 수치)
+  const rarityMultipliers = { common: 1.0, uncommon: 1.3, rare: 1.8, epic: 2.5, legendary: 3.5 };
+  const rarityMul = rarityMultipliers[rarity || element?.rarity || 'common'] || 1.0;
+
+  // 기본치: 낮은 수치에서 시작해 단계 배수로 성장; 원자번호에 따른 미세 증가 포함
+  const baseHp = 12 + Math.floor(Math.pow(number, 0.8));
+  const baseAtk = 6 + Math.floor(Math.pow(number, 0.7));
+
+  let hp = Math.floor(baseHp * stageMultiplier * rarityMul);
+  let atk = Math.floor(baseAtk * stageMultiplier * rarityMul);
+
+  // 결정론적(난수 없는) ±10% 변동: 원소번호+희귀도로부터 고정 배율 생성
+  const rarityKey = (rarity || element?.rarity || 'common');
+  let rarityHash = 0;
+  for (let i = 0; i < rarityKey.length; i++) {
+    rarityHash = ((rarityHash << 5) - rarityHash) + rarityKey.charCodeAt(i);
+    rarityHash |= 0;
+  }
+  const seed = (number * 131 + (rarityHash >>> 0)) >>> 0;
+  const t = (seed % 1000) / 1000; // 0.000 ~ 0.999
+  const variance = 0.9 + t * 0.2; // 0.9 ~ 1.1
+
+  hp = Math.max(1, Math.floor(hp * variance));
+  atk = Math.max(1, Math.floor(atk * variance));
+
+  return { hp, atk };
+}
+
+async function initGame() {
+  console.log("Initializing game state...");
+
+  // 모든 게임 데이터 로드
+  await loadAllGameData();
+
+  // 애니메이션 컨테이너들 정리
+  if (typeof window.cleanupAnimationContainers === 'function') {
+    window.cleanupAnimationContainers();
+  }
+
+  // --- Modify properties instead of reassigning gameState ---
+  // Clear arrays
+  gameState.playerHand.length = 0;
+  gameState.computerHand.length = 0;
+
+  // Reset values
   gameState.playerScore = 0;
   gameState.computerScore = 0;
   gameState.isGameActive = true;
+  gameState.isPlayerTurn = true;
+  gameState.turnCount = 1;
+  gameState.selectedCardId = null;
+  gameState.playerCoins = 20;
+  gameState.computerCoins = 20;
+  gameState.drawCount = 0;
+  gameState.energy = 0;
+
+  // 온라인 모드가 아닌 경우에만 오프라인 모드로 설정
+  if (!onlineGameState.isOnline) {
+    console.log('initGame: 오프라인 모드로 설정');
+    // 오프라인 모드로 설정
+    setOnlineMode(false, '', '');
+  } else {
+    console.log('initGame: 온라인 모드 유지');
+  }
+
+  // 핵융합 시스템 초기화
+  if (window.fusionSystem) {
+    gameState.fusionSystem = window.fusionSystem;
+    // equipment 초기화 및 NaN 복구
+    if (gameState.fusionSystem.initializeEquipment) {
+      gameState.fusionSystem.initializeEquipment();
+    }
+  } else {
+    console.warn("핵융합 시스템이 로드되지 않았습니다.");
+  }
+
+  battlefield.bases.player.hp = Math.pow(10, 20);
+  battlefield.bases.computer.hp = Math.pow(10, 20);
+  console.log("initGame: Resetting battlefield...");
+  resetBattlefield();
+
+  console.log("initGame: Updating score display...");
+  updateScoreDisplay();
+  console.log("initGame: Score display updated.");
+
+  console.log("initGame: Updating turn indicator...");
+  updateTurnIndicator();
+  console.log("initGame: Turn indicator updated.");
+
+  console.log("initGame: Finished.");
+  // Initialize computer coins display if needed (optional)
+}
+
+// 새로운 핵융합 가챠 시스템으로 랜덤 카드 생성 (턴 진행에 따라 더 좋은 카드)
+function createRandomCardByRarity() {
+  // 현재까지 발견된 최상위 원소 번호의 절반까지만 등장
+  const maxDiscovered = getMaxDiscoveredElementNumber();
+  
+  // 턴 진행에 따른 카드 품질 스케일링
+  const turnCount = gameState.turnCount || 1;
+  const turnScalingFactor = Math.min(1.5, 1 + (turnCount - 1) * 0.1); // 턴마다 10%씩 증가, 최대 1.5배
+  
+  // 기본 cap 계산 (최소 1로 설정하여 H는 항상 나올 수 있도록 함)
+  let baseCap = Math.max(1, Math.floor(maxDiscovered / 2));
+  
+  // 턴 진행에 따라 cap 증가 (더 높은 번호의 원소도 등장 가능)
+  const turnBoost = Math.floor((turnCount - 1) * 0.5); // 턴마다 0.5씩 증가
+  const cap = Math.min(maxDiscovered, baseCap + turnBoost);
+  
+  const lightElements = gameState.elementsData.filter(e => e.number <= cap);
+  
+  if (lightElements.length === 0) {
+    console.warn("Z≤26 원소가 없습니다. 기본 카드 생성.");
+    return createCardWithRarity('common');
+  }
+
+  // 분자 합성 시스템이 있으면 분자 가챠 실행
+  if (gameState.fusionSystem) {
+    const gachaResults = gameState.fusionSystem.performMoleculeGacha(1);
+    const moleculeId = Object.keys(gachaResults)[0];
+    
+    if (moleculeId) {
+      // 분자 데이터에서 분자 정보 찾기
+      const moleculeData = gameState.moleculesData.find(m => m.id === moleculeId);
+      if (moleculeData) {
+        const newCard = createCardFromMolecule(moleculeData);
+        return newCard;
+      }
+    }
+  }
+
+  // 희귀도 기반 가중치 선택 (턴 진행에 따라 더 좋은 등급 확률 증가)
+  const baseRarityChances = getRarityChances();
+  const rarityChances = adjustRarityChancesForTurn(baseRarityChances, turnCount);
+  const totalChance = Object.values(rarityChances).reduce((sum, chance) => sum + chance, 0);
+  let randomChance = Math.random() * totalChance;
+  
+  let selectedRarity = 'common';
+  for (const [rarity, chance] of Object.entries(rarityChances)) {
+    randomChance -= chance;
+    if (randomChance <= 0) {
+      selectedRarity = rarity;
+      break;
+    }
+  }
+
+  // 선택된 희귀도의 원소들 중에서 선택
+  const elementsOfRarity = lightElements.filter(e => (e.rarity || 'common') === selectedRarity);
+  const elementsToChoose = elementsOfRarity.length > 0 ? elementsOfRarity : lightElements;
+  
+  const randomIndex = Math.floor(Math.random() * elementsToChoose.length);
+  const element = elementsToChoose[randomIndex];
+  
+  // 원소 능력치 스케일 규칙 적용
+  const { hp: scaledHp, atk: scaledAtk } = computeElementStats(element, selectedRarity);
+  const newCard = new ElementCard(element, scaledHp, scaledAtk);
+  newCard.rarity = selectedRarity;
+  
+  return newCard;
+}
+
+// 등급에 따른 카드 생성 (Stat Rebalancing)
+function createCardWithRarity(rarity) {
+  console.log(`[createCardWithRarity] Attempting to create card with rarity: ${rarity}`);
+  const eligibleElements = gameState.elementsData.filter(element => {
+    const elementRarity = element.rarity || 'common'; // Default to common if rarity is missing
+    return elementRarity === rarity;
+  });
+
+  console.log(`[createCardWithRarity] Found ${eligibleElements.length} elements matching rarity ${rarity}.`);
+
+  // If no elements match the target rarity, fall back based on rarity level
+  let elementsToUse = eligibleElements;
+  if (elementsToUse.length === 0) {
+      console.warn(`[createCardWithRarity] No elements found for rarity ${rarity}. Falling back...`);
+      if (rarity === 'legendary' || rarity === 'epic') {
+          // Fallback to rare/uncommon if legendary/epic not found
+          elementsToUse = gameState.elementsData.filter(e => ['rare', 'uncommon'].includes(e.rarity || 'common'));
+      } else if (rarity === 'rare') {
+           // Fallback to uncommon/common if rare not found
+          elementsToUse = gameState.elementsData.filter(e => ['uncommon', 'common'].includes(e.rarity || 'common'));
+      } else {
+          // Default fallback to all elements if even common/uncommon filtering fails
+          elementsToUse = gameState.elementsData;
+      }
+       console.log(`[createCardWithRarity] Using fallback elements. Count: ${elementsToUse.length}`);
+       if (elementsToUse.length === 0) { // Final check if even fallback failed
+            console.error("[createCardWithRarity] No elements available at all!");
+            return null; // Cannot create a card
+       }
+  }
+
+
+  const randomIndex = Math.floor(Math.random() * elementsToUse.length);
+  const element = elementsToUse[randomIndex];
+
+  // Ensure element data is valid before proceeding
+  if (!element) {
+      console.error("[createCardWithRarity] Selected element is undefined or null after filtering/fallback.");
+      return null;
+  }
+   console.log(`[createCardWithRarity] Selected element: ${element.name} (Number: ${element.number})`);
+
+
+  const rarityMultipliers = {
+    common: 1.0,
+    uncommon: 1.3,
+    rare: 1.8,
+    epic: 2.5,
+    legendary: 3.5
+  };
+
+  // Use the element's actual rarity for multiplier, or the target rarity if falling back?
+  // Let's use the element's actual rarity for stat calculation.
+  const elementActualRarity = element.rarity || 'common';
+  const { hp: finalHp, atk: finalAtk } = computeElementStats(element, elementActualRarity);
+  const newCard = new ElementCard(element, finalHp, finalAtk);
+  // Assign the element's actual rarity to the card instance
+  newCard.rarity = elementActualRarity;
+  console.log(`[createCardWithRarity] Created card: ${newCard.name}, Rarity: ${newCard.rarity}, HP: ${newCard.hp}, ATK: ${newCard.atk}`);
+  return newCard;
+}
+
+// 기존 카드들의 능력치를 새로운 스케일링 공식에 맞게 업데이트
+function updateExistingCardStats() {
+  // 플레이어 핸드의 카드들 업데이트
+  gameState.playerHand.forEach(card => {
+    if (card.element && card.element.number) {
+      const stats = computeElementStats(card.element, card.rarity);
+      card.maxHp = stats.hp;
+      card.hp = Math.min(card.hp, card.maxHp);
+      card.atk = stats.atk;
+    }
+  });
+  
+  // 컴퓨터 핸드의 카드들 업데이트
+  gameState.computerHand.forEach(card => {
+    if (card.element && card.element.number) {
+      const stats = computeElementStats(card.element, card.rarity);
+      card.maxHp = stats.hp;
+      card.hp = Math.min(card.hp, card.maxHp);
+      card.atk = stats.atk;
+    }
+  });
+  
+  // 전장의 카드들 업데이트
+  battlefield.lanes.forEach(lane => {
+    ['player', 'computer'].forEach(side => {
+      const card = lane[side];
+      if (card && card.element && card.element.number && !card.isSkull) {
+        const stats = computeElementStats(card.element, card.rarity);
+        card.maxHp = stats.hp;
+        card.hp = Math.min(card.hp, card.maxHp);
+        card.atk = stats.atk;
+      }
+    });
+  });
+  
+  console.log("기존 카드들의 능력치가 새로운 스케일링 공식에 맞게 업데이트되었습니다.");
+}
+
+// --- ADD Definition for calculateBaseDamage ---
+function calculateBaseDamage(card) {
+    // Basic implementation: return the card's attack value
+    // Add more complex logic here if needed (e.g., buffs, debuffs)
+    if (!card || typeof card.atk !== 'number') {
+        console.warn("calculateBaseDamage: Invalid card or attack value.", card);
+        return 0;
+    }
+    return card.atk;
+}
+// --- END ADD Definition ---
+
+// 빈 라인 찾기 함수
+function findAvailableLane(side) {
+    for (let i = 0; i < battlefield.lanes.length; i++) {
+        const lane = battlefield.lanes[i];
+        const currentCard = lane[side];
+        if (!currentCard || currentCard.isSkull) {
+            return i;
+        }
+    }
+    return -1; // 빈 라인이 없음
+}
+
+// 통일된 카드 뽑기 함수 (손패에 추가)
+function drawCards(side) {
+    // 뽑기 횟수 제한 해제됨
+    
+    const cost = getCurrentDrawCost();
+    const cardCount = getCurrentCardCount();
+    
+    console.log(`Drawing ${cardCount} cards for ${side} (cost: ${cost})`);
+    
+    if (typeof showMultipleDrawAnimation === 'function') {
+        showMultipleDrawAnimation((newCards) => {
+            if (newCards && newCards.length > 0) {
+                // 모든 카드를 손패에 추가
+                newCards.forEach(card => {
+                    addCardToHand(card, side);
+                });
+                
+                // H 초과분을 에너지로 변환 (플레이어만)
+                if (side === 'player' && gameState.fusionSystem) {
+                    const hCount = gameState.fusionSystem.materials.H || 0;
+                    if (hCount > 0) {
+                        const energyGained = gameState.fusionSystem.convertHToEnergy(hCount);
+                        if (energyGained > 0) {
+                            showMessage(`H ${hCount}개가 에너지 ${energyGained}로 변환되었습니다!`, 'info');
+                        }
+                    }
+                    
+                    // Fe 초과분을 별로 변환 (플레이어만)
+                    const feCount = gameState.fusionSystem.materials.Fe || 0;
+                    if (feCount >= 5) {
+                        const starsGained = window.starManagement.createStarsFromFe(feCount);
+                        if (starsGained > 0) {
+                            gameState.fusionSystem.materials.Fe -= feCount;
+                            showMessage(`Fe ${feCount}개가 별 ${starsGained}개로 변환되었습니다!`, 'star');
+                        }
+                    }
+                }
+                
+                showMessage(`${side === 'player' ? '플레이어가' : '컴퓨터가'} ${newCards.length}장의 카드를 뽑았습니다! (비용: ${cost} 코인)`, 'success');
+                
+                // 뽑기 횟수 증가
+                gameState.drawCount++;
+                
+                // 온라인 게임인 경우 상대방에게 카드 뽑기 알림
+                if (onlineGameState.isOnline && onlineGameState.socket) {
+                    onlineGameState.socket.emit('cardDrawn', {
+                        side: side,
+                        cardCount: newCards.length,
+                        cost: cost,
+                        playerName: onlineGameState.opponentName
+                    });
+                }
+                
+                updateUI(); // Update UI after adding cards to hand
+            } else {
+                showMessage('카드 뽑기 중 오류 발생', 'error');
+            }
+        }, 'unified', cardCount);
+    } else {
+        console.error("showMultipleDrawAnimation function not found!");
+        // Fallback without animation
+        const newCards = [];
+        for (let i = 0; i < cardCount; i++) {
+            const card = createRandomCardByRarity();
+            if (card) {
+                newCards.push(card);
+            }
+        }
+        
+        if (newCards.length > 0) {
+            // 모든 카드를 손패에 추가
+            newCards.forEach(card => {
+                addCardToHand(card, side);
+            });
+            
+            // H 초과분을 에너지로 변환 (플레이어만)
+            if (side === 'player' && gameState.fusionSystem) {
+                const hCount = gameState.fusionSystem.materials.H || 0;
+                if (hCount > 0) {
+                    const energyGained = gameState.fusionSystem.convertHToEnergy(hCount);
+                    if (energyGained > 0) {
+                        showMessage(`H ${hCount}개가 에너지 ${energyGained}로 변환되었습니다!`, 'info');
+                    }
+                }
+                
+                // Fe 초과분을 별로 변환 (플레이어만)
+                const feCount = gameState.fusionSystem.materials.Fe || 0;
+                if (feCount >= 5) {
+                    const starsGained = gameState.fusionSystem.convertFeToStars(feCount);
+                    if (starsGained > 0) {
+                        showMessage(`Fe ${feCount}개가 별 ${starsGained}개로 변환되었습니다!`, 'info');
+                    }
+                }
+            }
+            
+            showMessage(`${side === 'player' ? '플레이어가' : '컴퓨터가'} ${newCards.length}장의 카드를 뽑았습니다! (비용: ${cost} 코인)`, 'success');
+            
+            // 온라인 게임인 경우 상대방에게 카드 뽑기 알림
+            if (onlineGameState.isOnline && onlineGameState.socket) {
+                onlineGameState.socket.emit('cardDrawn', {
+                    side: side,
+                    cardCount: newCards.length,
+                    cost: cost,
+                    playerName: onlineGameState.opponentName
+                });
+            }
+            
+            updateUI();
+        } else {
+            showMessage('카드 뽑기 중 오류 발생', 'error');
+        }
+    }
+}
+
+// 통일된 뽑기 대기열 함수
+function queueDrawCard(side) {
+    console.log(`Queueing draw for ${side}`);
+    // Example logic: Add to queue and process later
+    if (!drawState.isDrawing) {
+        processDrawQueue(); // Start processing if not already running
+    }
+    drawState.queue.push({ side: side });
+}
+
+// 통일된 뽑기 대기열 처리
+async function processDrawQueue() {
+    if (drawState.isDrawing || drawState.queue.length === 0) {
+        return;
+    }
+    drawState.isDrawing = true;
+
+    const drawRequest = drawState.queue.shift(); // Get the next draw request
+
+    // 통일된 뽑기 실행
+    drawCards(drawRequest.side);
+    
+    drawState.isDrawing = false;
+    processDrawQueue(); // Process next item in queue
+}
+
+// 애니메이션 없이 카드 뽑기 함수 (컴퓨터용, 손패에 추가)
+function drawCardsWithoutAnimation(side) {
+    // 뽑기 횟수 제한 해제됨
+    
+    const cost = getCurrentDrawCost();
+    const cardCount = getCurrentCardCount();
+    
+    console.log(`Drawing ${cardCount} cards for ${side} without animation (cost: ${cost})`);
+    
+    const newCards = [];
+    for (let i = 0; i < cardCount; i++) {
+        const card = createRandomCardByRarity();
+        if (card) {
+            newCards.push(card);
+        }
+    }
+    
+    if (newCards.length > 0) {
+        // 모든 카드를 손패에 추가
+        newCards.forEach(card => {
+            addCardToHand(card, side);
+        });
+        
+        // H 초과분을 에너지로 변환 (플레이어만)
+        if (side === 'player' && gameState.fusionSystem) {
+            const hCount = gameState.fusionSystem.materials.H || 0;
+            if (hCount > 0) {
+                const energyGained = gameState.fusionSystem.convertHToEnergy(hCount);
+                if (energyGained > 0) {
+                    showMessage(`H ${hCount}개가 에너지 ${energyGained}로 변환되었습니다!`, 'info');
+                }
+            }
+            
+            // Fe 초과분을 별로 변환 (플레이어만)
+            const feCount = gameState.fusionSystem.materials.Fe || 0;
+            if (feCount >= 5) {
+                const starsGained = window.starManagement.createStarsFromFe(feCount);
+                if (starsGained > 0) {
+                    gameState.fusionSystem.materials.Fe -= feCount;
+                    showMessage(`Fe ${feCount}개가 별 ${starsGained}개로 변환되었습니다!`, 'star');
+                }
+            }
+        }
+        
+        console.log(`${side} drew ${newCards.length} cards without animation`);
+        
+        // 뽑기 횟수 증가
+        gameState.drawCount++;
+        
+        // 온라인 게임인 경우 상대방에게 카드 뽑기 알림
+        if (onlineGameState.isOnline && onlineGameState.socket) {
+            onlineGameState.socket.emit('cardDrawn', {
+                side: side,
+                cardCount: newCards.length,
+                cost: cost,
+                playerName: onlineGameState.opponentName
+            });
+        }
+        
+        updateUI(); // Update UI after adding cards to hand
+    } else {
+        showMessage('카드 뽑기 중 오류 발생', 'error');
+    }
+}
+// --- End Placeholders ---
+
+async function endTurn() {
+  if (!gameState.isPlayerTurn) return;
+
+  // 온라인 게임인 경우
+  if (onlineGameState.isOnline) {
+    // 온라인 게임에서는 서버에서 공격을 처리하므로 클라이언트에서는 공격하지 않음
+    console.log('온라인 게임: 턴 종료 신호 전송 (동시 턴 모드)');
+    
+    // Socket.IO를 통해 턴 종료 신호 전송
+    if (window.onlineMatching) {
+      const result = await window.onlineMatching.endTurn(gameState, battlefield);
+      
+      if (result.error) {
+        showMessage(result.error, 'error');
+      } else {
+        showMessage('턴을 종료했습니다. 다음 턴을 진행하세요.', 'info');
+        // 동시 턴 모드에서는 턴 상태를 유지하여 계속 행동 가능
+        updateOnlineTurnUI();
+      }
+    }
+    return;
+  }
+
+  // 오프라인 게임 (기존 로직) - 온라인 모드가 아닌 경우에만 실행
+  if (!onlineGameState.isOnline) {
+    gameState.turnCount++;
+
+    checkCardHealing('player');
+    executeBaseAttacks('player');
+    // 플레이어 턴 종료 시 전투 실행 (플레이어 턴 상태 유지)
+    executeBattles();
+    addCoins(5, 'player'); // Player also gets coins per turn
+    
+    // 턴 상태 변경을 전투 후로 이동
+    gameState.isPlayerTurn = false;
+    // 온라인 모드인지 확인하여 적절한 메시지 표시
+    if (onlineGameState.isOnline) {
+      showMessage('상대방 차례입니다.', 'info');
+    } else {
+      showMessage('컴퓨터 차례입니다.', 'info');
+    }
+
+    // 핵융합 자동화 체크
+    if (typeof window.fusionUI !== 'undefined' && window.fusionUI.checkAutomation) {
+      window.fusionUI.checkAutomation();
+    }
+
+    // 별 관리 시스템 턴 처리
+    if (window.starManagement) {
+      const supernovas = window.starManagement.processTurn();
+      if (supernovas > 0) {
+        console.log(`${supernovas}개의 초신성이 발생했습니다!`);
+      }
+    }
+
+    updateUI();
+
+    setTimeout(computerTurn, 1500);
+  }
+}
+
+async function computerTurn() {
+  if (gameState.isPlayerTurn || !gameState.isGameActive) return;
+  
+  // 온라인 모드에서는 컴퓨터 턴을 실행하지 않음
+  if (onlineGameState.isOnline) {
+    console.log("온라인 모드에서는 컴퓨터 턴을 실행하지 않습니다.");
+    return;
+  }
+
+  console.log("--- Computer Turn Start ---");
+  showMessage('컴퓨터가 전략을 세우는 중...', 'info');
+
+  try {
+    const diff = getDifficultyConfig();
+    // 스마트 카드 뽑기 로직 - 턴 진행에 따라 더 자주 뽑도록 개선
+    const turnCount = gameState.turnCount || 1;
+    const drawThresholdMultiplier = Math.max(0.5, 1 - (turnCount - 1) * 0.02); // 턴마다 2%씩 감소, 최소 0.5배
+    const adjustedDrawThreshold = Math.ceil(diff.drawThreshold * drawThresholdMultiplier);
+    
+    if (gameState.computerHand.length < adjustedDrawThreshold) {
+      const cost = getCurrentDrawCost();
+      
+      if (gameState.computerCoins >= cost) {
+        if (spendCoins(cost, 'computer')) {
+          drawCardsWithoutAnimation('computer');
+          showMessage(`컴퓨터가 카드를 뽑았습니다. (비용: ${cost} 코인)`, 'info');
+          console.log(`Computer drew cards for ${cost} coins.`);
+        }
+      }
+    }
+    
+    // 추가 뽑기 로직 - 코인이 충분하면 더 뽑기
+    if (gameState.computerHand.length < 6 && gameState.computerCoins >= getCurrentDrawCost() * 2) {
+      const cost = getCurrentDrawCost();
+      if (spendCoins(cost, 'computer')) {
+        drawCardsWithoutAnimation('computer');
+        showMessage(`컴퓨터가 추가로 카드를 뽑았습니다. (비용: ${cost} 코인)`, 'info');
+        console.log(`Computer drew additional cards for ${cost} coins.`);
+      }
+    }
+
+    // 스마트 카드 배치 로직
+    if (gameState.computerHand.length > 0) {
+      const bestMove = findBestComputerMove();
+      
+      if (bestMove) {
+        const { card, laneIndex, reason } = bestMove;
+        
+        // 쉬움 난이도에서는 가끔 실수로 배치하지 않음
+        if (Math.random() < getDifficultyConfig().mistakeChance * 0.2) {
+          console.log('Easy mistake: 컴퓨터가 배치를 건너뜀');
+        } else if (placeCardOnBattlefield(card, laneIndex, 'computer')) {
+          removeCardFromHand(card.id, 'computer');
+          showMessage(`컴퓨터가 ${card.name}을 라인 ${laneIndex + 1}에 배치했습니다. (${reason})`, 'info');
+          console.log(`Computer placed ${card.name} in lane ${laneIndex}. Reason: ${reason}`);
+        }
+      }
+    }
+
+    // 턴 종료 후 처리
+    console.log("Computer: Checking card healing...");
+    checkCardHealing('computer');
+    console.log("Computer: Executing base attacks...");
+    executeBaseAttacks('computer');
+    console.log("Computer: Executing battles...");
+    executeBattles();
+    console.log("Computer: Adding coins...");
+    addCoins(5, 'computer');
+    
+    // 컴퓨터 턴 종료 후 플레이어 턴으로 전환
+    gameState.isPlayerTurn = true;
+    showMessage('플레이어 차례입니다.', 'info');
+
+
+    // 자동화 체크 (컴퓨터 턴에서도)
+    if (typeof window.checkAutomationImmediate === 'function') {
+      window.checkAutomationImmediate();
+    }
+
+    // 난이도별 생각 시간
+    await new Promise(r => setTimeout(r, getDifficultyConfig().thinkDelayMs));
+  } catch (error) {
+    console.error("Error during computer turn:", error);
+  } finally {
+    // 게임이 활성화되어 있지 않아도 턴을 제대로 종료해야 함
+    console.log("--- Computer Turn End ---");
+    updateUI();
+  }
+}
+
+// 스마트한 컴퓨터 전략 함수
+function findBestComputerMove() {
+  const availableCards = gameState.computerHand.filter(card => card && !card.isSkull);
+  if (availableCards.length === 0) return null;
+
+  const moves = [];
+  const diff = getDifficultyConfig();
+  
+  // 각 카드와 각 라인에 대한 점수 계산
+  availableCards.forEach((card, cardIndex) => {
+    for (let laneIndex = 0; laneIndex < battlefield.lanes.length; laneIndex++) {
+      const lane = battlefield.lanes[laneIndex];
+      const computerSlot = lane.computer;
+      const playerSlot = lane.player;
+      
+      // 빈 슬롯이거나 해골인 경우만 배치 가능
+      if (computerSlot === null || (computerSlot && computerSlot.isSkull)) {
+        const score = calculateMoveScore(card, laneIndex, computerSlot, playerSlot);
+        moves.push({
+          card: card,
+          cardIndex: cardIndex,
+          laneIndex: laneIndex,
+          score: score.score,
+          reason: score.reason
+        });
+      }
+    }
+  });
+
+  // 점수가 높은 순으로 정렬
+  moves.sort((a, b) => b.score - a.score);
+
+  if (moves.length === 0) return null;
+
+  // 난이도에 따른 실수/랜덤성 주입
+  if (Math.random() < diff.mistakeChance * 1.5) {
+    const k = Math.min(diff.chooseTopK + 1, moves.length); // 더 많은 선택지에서 랜덤 선택
+    const choice = moves[Math.floor(Math.random() * k)];
+    return choice;
+  }
+
+  // 항상 최고 선택이 아닌 상위 2-3개 중에서 선택
+  const topChoices = Math.min(3, moves.length);
+  const randomChoice = Math.floor(Math.random() * topChoices);
+  return moves[randomChoice];
+}
+
+// 카드 배치 점수 계산 함수
+function calculateMoveScore(card, laneIndex, computerSlot, playerSlot) {
+  let score = 0;
+  let reason = '';
+  const diff = getDifficultyConfig();
+
+  // 1. 공격 우선순위 (플레이어 카드가 있는 라인) - 턴 진행에 따라 더 공격적
+  if (playerSlot && !playerSlot.isSkull) {
+    const attackPower = card.atk || 0;
+    const playerHp = playerSlot.hp || 0;
+    
+    // 턴 진행에 따른 공격성 증가
+    const turnCount = gameState.turnCount || 1;
+    const aggressionMultiplier = Math.min(2.0, 1 + (turnCount - 1) * 0.05); // 턴마다 5%씩 증가, 최대 2배
+    const enhancedAggressionBonus = diff.aggressionBonus * aggressionMultiplier;
+    
+    // 플레이어 카드를 한 번에 처치할 수 있는지
+    if (attackPower >= playerHp) {
+      score += Math.floor(1000 * enhancedAggressionBonus);
+      reason = '플레이어 카드 처치 가능';
+    } else {
+      // 플레이어 카드에게 피해를 줄 수 있는지
+      score += Math.floor(attackPower * 10 * enhancedAggressionBonus);
+      reason = '플레이어 카드 공격';
+    }
+  }
+  
+  // 2. 기지 직접 공격 가능성 - 턴 진행에 따라 더 공격적
+  else if (!playerSlot || playerSlot.isSkull) {
+    const attackPower = card.atk || 0;
+    const playerBaseHp = battlefield.bases.player.hp || 0;
+    
+    // 턴 진행에 따른 공격성 증가
+    const turnCount = gameState.turnCount || 1;
+    const aggressionMultiplier = Math.min(2.0, 1 + (turnCount - 1) * 0.05); // 턴마다 5%씩 증가, 최대 2배
+    const enhancedAggressionBonus = diff.aggressionBonus * aggressionMultiplier;
+    
+    // 기지 체력이 낮으면 더 높은 점수
+    score += Math.floor((attackPower * 5 + (1000 - playerBaseHp) / 10) * enhancedAggressionBonus);
+    reason = '기지 직접 공격';
+  }
+
+  // 3. 카드 희귀도 고려 (턴 진행에 따라 더 높은 가중치)
+  const turnCount = gameState.turnCount || 1;
+  const rarityMultiplier = Math.min(2.0, 1 + (turnCount - 1) * 0.1); // 턴마다 10%씩 증가, 최대 2배
+  
+  const rarityBonus = {
+    'common': 0,
+    'uncommon': 10,
+    'rare': 25,
+    'epic': 50,
+    'legendary': 100
+  };
+  score += Math.floor((rarityBonus[card.rarity] || 0) * rarityMultiplier);
+
+  // 4. 카드 체력 고려 (생존력)
+  const hp = card.hp || 0;
+  score += hp * 2;
+
+  // 5. 특수 능력 고려
+  if (card.specialAbilities && card.specialAbilities.length > 0) {
+    score += 30;
+    reason += ' (특수 능력 보유)';
+  }
+
+  // 6. 상성 고려
+  if (playerSlot && !playerSlot.isSkull && card.affinities) {
+    const affinityMultiplier = calculateAffinityDamage(card, playerSlot);
+    if (affinityMultiplier > 1) {
+      score += 50;
+      reason += ' (상성 유리)';
+    } else if (affinityMultiplier < 1) {
+      score -= 20;
+      reason += ' (상성 불리)';
+    }
+  }
+
+  // 7. 분자 합성 가능성 고려
+  if (computerSlot && !computerSlot.isSkull) {
+    // 분자 합성 가능성 체크 (간단한 버전)
+    const canSynthesize = checkSynthesisPossibility(card, computerSlot);
+    if (canSynthesize) {
+      score += 100;
+      reason += ' (분자 합성 가능)';
+    }
+  }
+
+  // 8. 라인별 전략적 가치
+  const laneValue = calculateLaneValue(laneIndex);
+  score += laneValue;
+
+  return { score: Math.max(0, score), reason: reason || '기본 배치' };
+}
+
+// 라인별 전략적 가치 계산
+function calculateLaneValue(laneIndex) {
+  let value = 0;
+  
+  // 중앙 라인(2)이 가장 가치 있음
+  if (laneIndex === 2) {
+    value += 20;
+  }
+  // 중앙 근처 라인들
+  else if (laneIndex === 1 || laneIndex === 3) {
+    value += 10;
+  }
+  // 가장자리 라인들
+  else {
+    value += 5;
+  }
+  
+  return value;
+}
+
+// 분자 합성 가능성 체크 (간단한 버전)
+function checkSynthesisPossibility(card, existingCard) {
+  if (!card.element || !existingCard.element) return false;
+  
+  // 간단한 분자 합성 체크 (H + O = H2O 등)
+  const cardSymbol = card.element.symbol;
+  const existingSymbol = existingCard.element.symbol;
+  
+  // 물 분자 합성 체크
+  if ((cardSymbol === 'H' && existingSymbol === 'O') || 
+      (cardSymbol === 'O' && existingSymbol === 'H')) {
+    return true;
+  }
+  
+  // 기타 간단한 분자들
+  const synthesisPairs = [
+    ['H', 'Cl'], // HCl
+    ['Na', 'Cl'], // NaCl
+    ['C', 'O'], // CO
+    ['N', 'H'] // NH3
+  ];
+  
+  for (const pair of synthesisPairs) {
+    if ((cardSymbol === pair[0] && existingSymbol === pair[1]) ||
+        (cardSymbol === pair[1] && existingSymbol === pair[0])) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// 기지 치유 기능 제거됨 - 에너지 구매로 대체
+
+function executeBaseAttacks(attackingSide) {
+  console.log("Executing base attacks...");
+  const attackerSide = attackingSide; // 현재 턴의 공격측만 공격
+  const defenderSide = attackerSide === 'player' ? 'computer' : 'player';
+  battlefield.lanes.forEach((lane, index) => {
+    const attackerCard = lane[attackerSide];
+    const defenderCard = lane[defenderSide];
+
+    if (attackerCard && !defenderCard) {
+      const damage = calculateBaseDamage(attackerCard);
+      if (damage > 0) {
+        console.log(`Lane ${index}: ${attackerSide}'s ${attackerCard.name} attacks ${defenderSide} base for ${damage} damage.`);
+        damageBase(defenderSide, damage);
+        if (typeof playAttackAnimation === 'function') {
+          playAttackAnimation(attackerCard, null, index, attackerSide);
+        } else {
+          console.warn("playAttackAnimation function not found!");
+        }
+      }
+    }
+  });
+  updateBaseDisplay();
+  console.log("Base attacks execution finished.");
+}
+
+// --- Game End Logic ---
+function endGame(winner) {
+  if (!gameState.isGameActive) return; // Prevent multiple calls
+
+  gameState.isGameActive = false;
+  console.log(`Game Over! Winner: ${winner}`);
+
+  // 애니메이션 컨테이너들 정리
+  if (typeof window.cleanupAnimationContainers === 'function') {
+    window.cleanupAnimationContainers();
+  }
+
+  // Show game result modal (assuming showGameResultModal exists in ui.js)
+  if (typeof showGameResultModal === 'function') {
+    showGameResultModal(winner);
+  } else {
+    // Fallback alert
+    alert(`게임 종료! ${winner === 'player' ? '플레이어' : '컴퓨터'} 승리!`);
+  }
+
+  // Disable buttons, etc.
+  const endTurnBtn = document.getElementById('end-turn-btn');
+  if (endTurnBtn) endTurnBtn.disabled = true;
+  const healBtn = document.getElementById('heal-base-btn');
+  if (healBtn) healBtn.disabled = true;
+  // Consider disabling draw buttons etc.
+  document.querySelectorAll('.draw-btn').forEach(btn => btn.disabled = true); // Example
+}
+// --- End Game End Logic ---
+
+// --- Base Damage Logic ---
+function damageBase(side, amount) {
+  if (!gameState.isGameActive) return; // Don't deal damage if game is over
+
+  const base = battlefield.bases[side];
+  if (base) {
+    base.hp = Math.max(0, base.hp - amount);
+    console.log(`${side} base took ${amount} damage, HP remaining: ${base.hp}`);
+    updateBaseDisplay(side); // Update specific base display
+
+    // Add visual effect for damage
+    const baseElement = document.getElementById(`${side}-base`);
+    if (baseElement) {
+      baseElement.classList.add('base-damage');
+      // Remove the class after the animation completes
+      setTimeout(() => {
+        baseElement.classList.remove('base-damage');
+      }, 500); // Match animation duration
+    }
+
+    // Check for game over - Calls the endGame function defined above
+    if (base.hp <= 0) {
+      endGame(side === 'player' ? 'computer' : 'player'); // The opponent wins
+    }
+  }
+}
+// --- End Base Damage Logic ---
+
+function executeBattles() {
+  let battleResults = [];
+  console.log("[executeBattles] Starting battles..."); // Add log
+
+  battlefield.lanes.forEach((lane, laneIndex) => {
+    const playerCard = lane.player;
+    const computerCard = lane.computer;
+
+    if (playerCard && computerCard && !playerCard.isSkull && !computerCard.isSkull) {
+      console.log(`[executeBattles] Lane ${laneIndex}: Player (${playerCard.name}) vs Computer (${computerCard.name})`);
+
+      // 턴에 따라 한 쪽만 공격하도록 수정
+      let attackResult = null;
+      if (gameState.isPlayerTurn) {
+        // 플레이어 턴: 플레이어 카드가 컴퓨터 카드를 공격
+        // 카드 간 공격 애니메이션 실행
+        if (window.playCardAttackAnimation) {
+          window.playCardAttackAnimation(playerCard, computerCard, laneIndex, 'player');
+        }
+        
+        attackResult = window.executeAttack(playerCard, computerCard);
+        battleResults.push({
+          lane: laneIndex,
+          playerAttack: attackResult,
+          computerAttack: null
+        });
+      } else {
+        // 컴퓨터 턴: 컴퓨터 카드가 플레이어 카드를 공격
+        // 카드 간 공격 애니메이션 실행
+        if (window.playCardAttackAnimation) {
+          window.playCardAttackAnimation(computerCard, playerCard, laneIndex, 'computer');
+        }
+        
+        attackResult = window.executeAttack(computerCard, playerCard);
+        battleResults.push({
+          lane: laneIndex,
+          playerAttack: null,
+          computerAttack: attackResult
+        });
+      }
+
+      // Check results and handle card destruction / skull placement
+      if (computerCard.hp <= 0) {
+        console.log(`[executeBattles] Lane ${laneIndex}: Computer card ${computerCard.name} destroyed.`);
+        
+        // 카드 소멸 애니메이션 실행
+        const computerCardElement = document.querySelector(`[data-card-id="${computerCard.id}"]`);
+        if (computerCardElement && window.playCardDestroyAnimation) {
+          window.playCardDestroyAnimation(computerCardElement);
+        }
+        
+        const coinReward = (computerCard.element?.rewardCoins || computerCard.rarityMultipliers || 1) * 2; // Example reward
+        addCoins(coinReward, 'player');
+        gameState.playerScore += 1;
+
+        // 카드 소멸 후 해골 카드로 교체 (애니메이션 완료 후)
+        setTimeout(() => {
+          // Ensure createSkullCard is accessible
+          if (typeof createSkullCard === 'function') {
+              const skullCard = createSkullCard('computer', computerCard.element || { name: computerCard.name }); // Pass element or basic info
+              battlefield.lanes[laneIndex].computer = skullCard;
+          } else {
+               console.error("createSkullCard function not found!");
+               battlefield.lanes[laneIndex].computer = null; // Fallback: just remove
+          }
+
+          // Ensure showCardDestroyEffect is accessible
+          if (typeof showCardDestroyEffect === 'function') {
+              showCardDestroyEffect(laneIndex, 'computer');
+          } else {
+               console.warn("showCardDestroyEffect function not found!");
+          }
+          
+          // 전장 다시 렌더링
+          renderBattlefield();
+        }, 500); // 소멸 애니메이션 완료 후
+      }
+
+      if (playerCard.hp <= 0) {
+         console.log(`[executeBattles] Lane ${laneIndex}: Player card ${playerCard.name} destroyed.`);
+         
+         // 카드 소멸 애니메이션 실행
+         const playerCardElement = document.querySelector(`[data-card-id="${playerCard.id}"]`);
+         if (playerCardElement && window.playCardDestroyAnimation) {
+           window.playCardDestroyAnimation(playerCardElement);
+         }
+         
+        gameState.computerScore += 1;
+
+        // 카드 소멸 후 해골 카드로 교체 (애니메이션 완료 후)
+        setTimeout(() => {
+          if (typeof createSkullCard === 'function') {
+              const skullCard = createSkullCard('player', playerCard.element || { name: playerCard.name });
+              battlefield.lanes[laneIndex].player = skullCard;
+          } else {
+               console.error("createSkullCard function not found!");
+               battlefield.lanes[laneIndex].player = null;
+          }
+
+          if (typeof showCardDestroyEffect === 'function') {
+              showCardDestroyEffect(laneIndex, 'player');
+          } else {
+               console.warn("showCardDestroyEffect function not found!");
+          }
+          
+          // 전장 다시 렌더링
+          renderBattlefield();
+        }, 500); // 소멸 애니메이션 완료 후
+      }
+
+      // Update last damage turn (useful for regeneration effects later)
+      if (attackResult && attackResult.damageDealt > 0) {
+        if (gameState.isPlayerTurn && computerCard.hp > 0) {
+          computerCard.lastDamageTurn = gameState.turnCount;
+        } else if (!gameState.isPlayerTurn && playerCard.hp > 0) {
+          playerCard.lastDamageTurn = gameState.turnCount;
+        }
+      }
+
+      // Check for reactions after battle
+      if (typeof checkChemicalReactions === 'function') {
+          checkChemicalReactions(laneIndex);
+      } else {
+          console.warn("checkChemicalReactions function not found!");
+      }
+
+
+    }
+    // Base attacks are handled in executeBaseAttacks, no need to repeat here
+    // else if (playerCard && !computerCard && !playerCard.isSkull) { ... }
+    // else if (computerCard && !playerCard && !computerCard.isSkull) { ... }
+  });
+
+  console.log("[executeBattles] Battles finished. Updating score and rendering.");
+  updateScoreDisplay();
+  renderBattlefield(); // Render changes after all battles in the loop are processed
+
+  // 전투 후 턴 시작/지속형 특수능력 적용 보정
+  triggerOngoingAndTurnStartAbilities();
+}
+
+// 분자의 특수능력 보정: 턴 시작형과 지속형을 전장에 일괄 적용
+function triggerOngoingAndTurnStartAbilities() {
+  const applyForSide = (side) => {
+    battlefield.lanes.forEach((lane) => {
+      const card = lane[side];
+      if (!card || card.isSkull) return;
+      if (card.specialAbilities && Array.isArray(card.specialAbilities)) {
+        // 턴 시작형 처리
+        card.specialAbilities.forEach(ability => {
+          if (!ability) return;
+          if (ability.condition === 'turn_start' || ability.condition === 'always') {
+            try {
+              // 턴 시작/지속형 특수능력도 애니메이션과 함께 실행
+              executeSpecialAbility(ability, card, [], side === 'player');
+            } catch (e) {
+              console.warn('특수능력 실행 오류:', e);
+            }
+          }
+        });
+      }
+    });
+  };
+
+  applyForSide('player');
+  applyForSide('computer');
+}
+
+function resetGame() {
+  console.log('resetGame 호출됨, 현재 온라인 상태:', onlineGameState.isOnline);
+  
+  gameState.playerScore = 0;
+  gameState.computerScore = 0;
+  gameState.isGameActive = true; // Reactivate game
   gameState.playerHand = [];
   gameState.computerHand = [];
   gameState.isPlayerTurn = true;
   gameState.turnCount = 1;
   gameState.selectedCardId = null;
-  
-  resetCoins();
-  resetBattlefield();
-  
-  // 초기 카드 지급
-  for (let i = 0; i < 3; i++) {
-    addCardToHand(createRandomCard(), 'player');
+  gameState.playerCoins = 20;
+  gameState.computerCoins = 20;
+  gameState.drawCount = 0; // Reset draw count
+  gameState.energy = 0; // Reset energy
+
+  // Reset base HP specifically (과학 기지 체력 1Utg)
+  battlefield.bases.player.hp = Math.pow(10, 20);
+  battlefield.bases.computer.hp = Math.pow(10, 20);
+
+  // 애니메이션 컨테이너들 정리
+  if (typeof window.cleanupAnimationContainers === 'function') {
+    window.cleanupAnimationContainers();
   }
-  
+
+  resetBattlefield(); // Resets lanes and ensures bases are at max HP
+
+  // 온라인 모드가 아닌 경우에만 컴퓨터 카드 생성
+  if (!onlineGameState.isOnline) {
+    console.log('오프라인 모드: 플레이어와 컴퓨터 카드 생성');
+    // 고정된 시작 카드 제공: H 3개 (플레이어)
+    // 공정성 확보: 양측 모두 동일 경로로 랜덤 카드 3장 지급
+    for (let i = 0; i < 3; i++) {
+      const pCard = createRandomCardByRarity();
+      if (pCard) addCardToHand(pCard, 'player');
+    }
+
+    for (let i = 0; i < 3; i++) {
+      const cCard = createRandomCardByRarity();
+      if (cCard) addCardToHand(cCard, 'computer');
+    }
+  } else {
+    console.log('온라인 모드: 수소 3개 카드 생성');
+    // 온라인 모드에서도 수소 3개 제공
+    if (gameState.elementsData && Array.isArray(gameState.elementsData) && gameState.elementsData.length > 0) {
+      const hydrogenElement = gameState.elementsData.find(e => e.symbol === 'H');
+      if (hydrogenElement) {
+        for (let i = 0; i < 3; i++) {
+          const hCard = new ElementCard(hydrogenElement, hydrogenElement.baseHp, hydrogenElement.baseAtk);
+          addCardToHand(hCard, 'player');
+        }
+        console.log('온라인 모드: 수소 카드 3개 생성 완료');
+      } else {
+        console.error('온라인 모드: 수소 원소를 찾을 수 없습니다.');
+        // 폴백: 첫 번째 원소 사용
+        const fallbackElement = gameState.elementsData[0];
+        if (fallbackElement) {
+          for (let i = 0; i < 3; i++) {
+            const fallbackCard = new ElementCard(fallbackElement, fallbackElement.baseHp, fallbackElement.baseAtk);
+            addCardToHand(fallbackCard, 'player');
+          }
+          console.log('온라인 모드: 폴백 원소 카드 3개 생성 완료');
+        }
+      }
+    } else {
+      console.error('온라인 모드: elementsData가 로드되지 않았습니다. 데이터 로딩을 기다립니다.');
+      // 데이터 로딩을 기다린 후 카드 생성
+      setTimeout(() => {
+        if (gameState.elementsData && Array.isArray(gameState.elementsData) && gameState.elementsData.length > 0) {
+          const hydrogenElement = gameState.elementsData.find(e => e.symbol === 'H');
+          if (hydrogenElement) {
+            for (let i = 0; i < 3; i++) {
+              const hCard = new ElementCard(hydrogenElement, hydrogenElement.baseHp, hydrogenElement.baseAtk);
+              addCardToHand(hCard, 'player');
+            }
+            console.log('온라인 모드: 지연된 수소 카드 3개 생성 완료');
+            updateUI();
+          }
+        } else {
+          console.error('온라인 모드: 지연 후에도 elementsData를 찾을 수 없습니다.');
+        }
+      }, 1000);
+    }
+  }
+
   showMessage('게임이 초기화되었습니다. 카드를 배치하세요!', 'info');
   updateUI();
+
+  // Re-enable buttons if they were disabled
+  const endTurnBtn = document.getElementById('end-turn-btn');
+  if (endTurnBtn) endTurnBtn.disabled = false;
+  // Re-enable other buttons as needed
 }
 
-function updateScoreDisplay() {
-  document.getElementById('player-score').textContent = gameState.playerScore;
-  document.getElementById('computer-score').textContent = gameState.computerScore;
+function updateBaseDisplay(side = null) {
+  const sides = side ? [side] : ['player', 'computer'];
+  sides.forEach(s => {
+    const base = battlefield.bases[s];
+    const hpElement = document.getElementById(`${s}-base-hp`);
+    const hpBarElement = document.getElementById(`${s}-base-hp-bar`);
+
+    if (hpElement && hpBarElement && base) {
+      hpElement.textContent = base.hp;
+      // Calculate width based on maxHp (now 1000)
+      const widthPercent = Math.max(0, (base.hp / base.maxHp) * 100);
+      hpBarElement.style.width = `${widthPercent}%`;
+    } else {
+      // console.error(`updateBaseDisplay: Elements for ${s} base not found or base data missing.`);
+    }
+  });
 }
 
-function updateTurnIndicator() {
-  const resultMessage = document.getElementById('result-message');
-  
-  if (gameState.isPlayerTurn) {
-    resultMessage.textContent = `${gameState.turnCount}턴: 플레이어 차례`;
-    resultMessage.className = 'text-center text-xl font-bold h-12 text-blue-400';
-  } else {
-    resultMessage.textContent = `${gameState.turnCount}턴: 컴퓨터 차례`;
-    resultMessage.className = 'text-center text-xl font-bold h-12 text-red-400';
-  }
+// 에너지 관련 함수들
+function addEnergy(amount, side) {
+    if (!gameState.isGameActive) return false;
+    
+    if (side === 'player') {
+        if (!gameState.energy) gameState.energy = 0;
+        
+        gameState.energy += amount;
+        
+        console.log(`Player energy increased by ${amount}. Current energy: ${gameState.energy}`);
+        
+        // 에너지 표시 업데이트
+        if (typeof updateEnergyDisplay === 'function') {
+            updateEnergyDisplay();
+        }
+        
+        return true;
+    }
+    
+    return false;
+}
+
+function spendEnergy(amount, side) {
+    if (!gameState.isGameActive) return false;
+    
+    if (side === 'player') {
+        if (!gameState.energy) gameState.energy = 0;
+        
+        if (gameState.energy < amount) {
+            return false; // Not enough energy
+        }
+        
+        gameState.energy = Math.max(0, gameState.energy - amount);
+        console.log(`Player energy decreased by ${amount}. Current energy: ${gameState.energy}`);
+        
+        // 에너지 표시 업데이트
+        if (typeof updateEnergyDisplay === 'function') {
+            updateEnergyDisplay();
+        }
+        
+        return true;
+    }
+    
+    return false;
+}
+
+function getEnergyAmount(side) {
+    if (side === 'player') {
+        return gameState.energy || 0;
+    }
+    return 0;
 }
 
 function updateUI() {
-  renderPlayerHand();
-  renderBattlefield();
-  updateTurnIndicator();
-  updateCoinDisplay();
-  updateBaseDisplay();
-}
-
-// 등급에 따른 카드 생성
-function createCardWithRarity(rarity) {
-  // 원소 데이터가 로드되었는지 확인
-  if (!gameState.elementsData || gameState.elementsData.length === 0) {
-    console.error('원소 데이터가 로드되지 않았습니다.');
-    return createDefaultCard(rarity);
+  console.log('updateUI 호출됨');
+  console.log('현재 게임 상태:', gameState);
+  console.log('현재 전장 상태:', battlefield);
+  
+  if (typeof renderPlayerHand === 'function') {
+    renderPlayerHand();
   }
   
-  // 등급에 맞는 원소들 필터링
-  const eligibleElements = gameState.elementsData.filter(element => {
-    if (!element) return false; // element가 undefined인 경우 제외
-    // 원소에 등급이 없으면 common으로 간주
-    const elementRarity = element.rarity || 'common';
-    return elementRarity === rarity;
-  });
-  
-  // 등급에 맞는 원소가 없으면 모든 원소에서 선택
-  const elements = eligibleElements.length > 0 ? eligibleElements : gameState.elementsData;
-  
-  if (elements.length === 0) {
-    console.error('선택할 원소가 없습니다.');
-    return createDefaultCard(rarity);
+  if (typeof renderBattlefield === 'function') {
+    renderBattlefield();
   }
   
-  // 랜덤 원소 선택
-  const randomIndex = Math.floor(Math.random() * elements.length);
-  const element = elements[randomIndex];
-  
-  if (!element) {
-    console.error('선택된 원소가 정의되지 않았습니다.');
-    return createDefaultCard(rarity);
+  if (typeof updateTurnIndicator === 'function') {
+    updateTurnIndicator();
   }
   
-  // 원본 데이터 수정 방지를 위한 복사본 생성
-  const elementCopy = { ...element };
+  if (typeof updateCoinDisplay === 'function') {
+    updateCoinDisplay('player');
+  }
   
-  // 원소에 등급 정보 부여
-  elementCopy.rarity = elementCopy.rarity || rarity;
+  if (typeof updateBaseDisplay === 'function') {
+    updateBaseDisplay();
+  }
+
+  // 핵융합 시스템 UI 업데이트
+  if (typeof window.fusionUI !== 'undefined' && window.fusionUI.updateMainUI) {
+    window.fusionUI.updateMainUI();
+  }
+
+  // 자동화 체크 (UI 업데이트마다 즉시 실행)
+  if (typeof window.checkAutomationImmediate === 'function') {
+    window.checkAutomationImmediate();
+  }
+
+  // 에너지와 열 표시 업데이트
+  if (typeof updateEnergyDisplay === 'function') {
+    updateEnergyDisplay();
+  }
+  if (typeof updateHeatDisplay === 'function') {
+    updateHeatDisplay();
+  }
   
-  // 등급에 따른 능력치 보정
-  const rarityMultipliers = {
-    common: 1.0,
-    uncommon: 1.2,
-    rare: 1.5,
-    epic: 2.0,
-    legendary: 3.0
-  };
-  
-  const multiplier = rarityMultipliers[rarity] || 1.0;
-  
-  const baseHp = Math.floor((elementCopy.baseHp || 5) * multiplier);
-  const baseAtk = Math.floor((elementCopy.baseAtk || 2) * multiplier);
-  
-  return new ElementCard(elementCopy, baseHp, baseAtk);
+  console.log('updateUI 완료');
 }
 
-// 기본 카드 생성 (예외 상황용)
-function createDefaultCard(rarity) {
-  const defaultElement = {
-    number: 0,
-    symbol: '?',
-    name: '미확인 원소',
-    englishName: 'Unknown Element',
-    category: '기타',
-    atomicWeight: 0,
-    color: 'bg-gray-500',
-    baseHp: 5,
-    baseAtk: 2,
-    rarity: rarity || 'common'
-  };
-  
-  const rarityMultipliers = {
-    common: 1.0,
-    uncommon: 1.2,
-    rare: 1.5,
-    epic: 2.0,
-    legendary: 3.0
-  };
-  
-  const multiplier = rarityMultipliers[rarity] || 1.0;
-  const baseHp = Math.floor(5 * multiplier);
-  const baseAtk = Math.floor(2 * multiplier);
-  
-  return new ElementCard(defaultElement, baseHp, baseAtk);
+// Function to get the current cost of drawing cards (통일된 시스템)
+function getCurrentDrawCost() {
+  return Math.floor(gameState.baseDrawCost * Math.pow(gameState.costMultiplier, gameState.drawCount));
 }
 
-// 지정된 등급에 맞는 랜덤 카드 생성
-function createRandomCardByRarity(drawType) {
-  // 뽑기 유형에 따른 등급 확률 가져오기
-  const rarityChances = gameState.rarityChances[drawType] || gameState.rarityChances.basic;
-  
-  // 랜덤 등급 선택
-  const rarity = selectRandomRarity(rarityChances);
-  
-  // 선택된 등급으로 카드 생성
-  return createCardWithRarity(rarity);
-}
+// Expose necessary functions and variables to the global scope
+window.gameState = gameState;
+window.getCurrentDrawCost = getCurrentDrawCost;
+window.getCurrentCardCount = getCurrentCardCount;
+window.getRarityChances = getRarityChances;
+window.queueDrawCard = queueDrawCard;
+window.drawCards = drawCards; // Expose unified draw function
+window.drawCardsWithoutAnimation = drawCardsWithoutAnimation; // Expose animation-free draw function
+window.findAvailableLane = findAvailableLane; // Expose find available lane function
+window.updateExistingCardStats = updateExistingCardStats; // Expose card stats update function
+window.endTurn = typeof endTurn !== 'undefined' ? endTurn : undefined;
+window.resetGame = typeof resetGame !== 'undefined' ? resetGame : undefined;
+window.initGame = typeof initGame !== 'undefined' ? initGame : undefined;
+window.updateUI = typeof updateUI !== 'undefined' ? updateUI : undefined;
+window.createRandomCard = typeof createRandomCard !== 'undefined' ? createRandomCard : undefined;
+window.addCardToHand = typeof addCardToHand !== 'undefined' ? addCardToHand : undefined;
+window.getElementByNumber = typeof getElementByNumber !== 'undefined' ? getElementByNumber : (num) => gameState.elementsData.find(e => e.number === num);
+window.getElementBySymbol = typeof getElementBySymbol !== 'undefined' ? getElementBySymbol : (sym) => gameState.elementsData.find(e => e.symbol === sym);
+window.calculateBaseDamage = calculateBaseDamage;
+window.computeElementStats = computeElementStats; // Expose computeElementStats function
+window.loadCardStatsData = loadCardStatsData; // Expose loadCardStatsData function
+window.loadAllGameData = loadAllGameData; // Expose loadAllGameData function
+window.spendCoins = typeof spendCoins !== 'undefined' ? spendCoins : undefined;
+window.addCoins = typeof addCoins !== 'undefined' ? addCoins : undefined;
+window.addEnergy = addEnergy; // Expose energy functions
+window.spendEnergy = spendEnergy;
+window.getEnergyAmount = getEnergyAmount;
+window.updateBaseDisplay = updateBaseDisplay; // Ensure exposed if called elsewhere directly
+window.damageBase = damageBase; // Expose if needed
+window.endGame = endGame; // Expose endGame
 
-// 확률에 따른 랜덤 등급 선택
-function selectRandomRarity(rarityChances) {
-  const totalChance = Object.values(rarityChances).reduce((sum, chance) => sum + chance, 0);
-  let randomValue = Math.random() * totalChance;
-  
-  for (const [rarity, chance] of Object.entries(rarityChances)) {
-    if (randomValue < chance) {
-      return rarity;
+// --- Add missing executeAttack function ---
+function executeAttack(attackerCard, defenderCard) {
+    // Basic attack: use calculateBaseDamage and deduct HP
+    let damage = calculateBaseDamage(attackerCard);
+    
+    // 상성 시스템 적용
+    if (defenderCard) {
+        const affinityMultiplier = calculateAffinityDamage(attackerCard, defenderCard);
+        damage = Math.floor(damage * affinityMultiplier);
+        
+        // 시너지 보너스 적용
+        if (attackerCard.synergyBonus) {
+            damage = Math.floor(damage * attackerCard.synergyBonus);
+        }
+        
+        defenderCard.hp = Math.max(0, defenderCard.hp - damage);
     }
-    randomValue -= chance;
+    
+    return { damageDealt: damage };
+}
+window.executeAttack = executeAttack;
+
+// --- 온라인 게임 관련 함수들 ---
+
+// 온라인 모드 설정
+function setOnlineMode(isOnline, roomId = '', opponentName = '') {
+  console.log('=== 온라인 모드 설정 시작 ===');
+  console.log('설정할 값:', { isOnline, roomId, opponentName });
+  console.log('설정 전 상태:', onlineGameState);
+  
+  onlineGameState.isOnline = isOnline;
+  onlineGameState.roomId = roomId;
+  onlineGameState.opponentName = opponentName;
+  
+  // 온라인 턴 상태 리셋
+  onlineGameState.playerTurnEnded = false;
+  onlineGameState.opponentTurnEnded = false;
+  onlineGameState.waitingForOpponent = false;
+  
+  if (isOnline && window.onlineMatching) {
+    onlineGameState.socket = window.onlineMatching.socket;
   }
   
-  // 기본값으로 common 반환
-  return 'common';
+  console.log('설정 후 상태:', onlineGameState);
+  
+  // UI 업데이트
+  updateOnlineModeUI();
+  updateOnlineTurnUI();
+  
+  // 전역 변수 업데이트
+  window.onlineGameState = onlineGameState;
+  
+  console.log('=== 온라인 모드 설정 완료 ===');
 }
 
-// 손패에 카드 추가
-function addCardToHand(card, side) {
-  if (!card) return;
+// 온라인 모드 UI 업데이트
+function updateOnlineModeUI() {
+  console.log('=== 온라인 모드 UI 업데이트 시작 ===');
+  console.log('현재 onlineGameState:', onlineGameState);
+  console.log('isOnline:', onlineGameState.isOnline);
+  console.log('opponentName:', onlineGameState.opponentName);
   
-  if (side === 'player') {
-    gameState.playerHand.push(card);
-  } else if (side === 'computer') {
-    gameState.computerHand.push(card);
-  }
-}
-
-// 손패에서 카드 제거
-function removeCardFromHand(cardId, side) {
-  if (side === 'player') {
-    gameState.playerHand = gameState.playerHand.filter(card => card.id !== cardId);
-  } else if (side === 'computer') {
-    gameState.computerHand = gameState.computerHand.filter(card => card.id !== cardId);
-  }
-}
-
-function upgradeCardOnField(card, cost) {
-  // 코인 확인
-  if (getCoinAmount() < cost) {
-    showMessage('코인이 부족합니다!', 'error');
-    return false;
-  }
-  
-  // 코인 차감
-  spendCoins(cost);
-  
-  // 현재 레벨 기준으로 능력치 증가
-  const currentLevel = card.upgradeLevel || 0;
-  const newLevel = currentLevel + 1;
-  
-  // 기본 증가량
-  const atkIncrease = Math.floor(1 + (newLevel * 0.5));
-  const hpIncrease = Math.floor(2 + (newLevel * 0.8));
-  
-  // 능력치 증가
-  card.atk += atkIncrease;
-  card.maxHp += hpIncrease;
-  card.hp += hpIncrease;
-  
-  // 레벨 증가
-  card.upgradeLevel = newLevel;
-  
-  // 업그레이드 표시 애니메이션
-  const cardElement = document.querySelector(`[data-card-id="${card.id}"]`);
-  if (cardElement) {
-    try {
-      applyCardUpgradeAnimation(cardElement);
-    } catch (error) {
-      console.error('카드 업그레이드 애니메이션 오류:', error);
+  const computerInfo = document.querySelector('.computer-info h2');
+  if (computerInfo) {
+    if (onlineGameState.isOnline) {
+      computerInfo.textContent = onlineGameState.opponentName || '상대방';
+      console.log('✅ 상대방 이름으로 업데이트:', onlineGameState.opponentName);
+    } else {
+      computerInfo.textContent = '컴퓨터';
+      console.log('✅ 컴퓨터로 업데이트');
     }
+  } else {
+    console.warn('❌ computer-info h2 요소를 찾을 수 없습니다.');
   }
   
-  return true;
+  // 온라인 매칭 버튼 상태 업데이트
+  const onlineMatchBtn = document.getElementById('online-match-btn');
+  if (onlineMatchBtn) {
+    if (onlineGameState.isOnline) {
+      onlineMatchBtn.textContent = '🌐 온라인 게임 중';
+      onlineMatchBtn.disabled = true;
+      onlineMatchBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      console.log('✅ 온라인 매칭 버튼 비활성화');
+    } else {
+      onlineMatchBtn.textContent = '🌐 온라인 매칭';
+      onlineMatchBtn.disabled = false;
+      onlineMatchBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      console.log('✅ 온라인 매칭 버튼 활성화');
+    }
+  } else {
+    console.warn('❌ online-match-btn 요소를 찾을 수 없습니다.');
+  }
+  
+  // 온라인 모드에서 난이도 선택 UI 숨기기/보이기
+  const difficultyContainer = document.querySelector('.difficulty-container');
+  if (difficultyContainer) {
+    if (onlineGameState.isOnline) {
+      difficultyContainer.style.display = 'none';
+      console.log('✅ 난이도 선택 UI 숨김');
+    } else {
+      difficultyContainer.style.display = 'block';
+      console.log('✅ 난이도 선택 UI 표시');
+    }
+  } else {
+    console.warn('❌ difficulty-container 요소를 찾을 수 없습니다.');
+  }
+  
+  // 턴 표시 업데이트
+  updateOnlineTurnUI();
+  
+  console.log('=== 온라인 모드 UI 업데이트 완료 ===');
 }
 
-// 카드 강화 처리 함수 추가
-function handleCardUpgrade(cardId, laneIndex, side) {
-  const lane = battlefield.lanes[laneIndex];
-  const card = lane[side];
+// 온라인 턴 UI 업데이트 - 서로 기다리는 상황 방지
+function updateOnlineTurnUI() {
+  const endTurnBtn = document.getElementById('end-turn-btn');
+  const resultMessage = document.getElementById('result-message');
   
-  if (!card || card.isSkull) return;
-  
-  // 카드 강화 모달 표시
-  showCardUpgradeModal(card, laneIndex, side);
-}
-
-// 생성 가능한 분자 찾기 함수
-function findPossibleMolecules(card) {
-  if (!card || card.isSkull) return [];
-  
-  // 카드와 스택의 원소 정보 수집
-  const elementCounts = {};
-  
-  // 현재 카드 원소 추가
-  const cardSymbol = card.element.symbol;
-  elementCounts[cardSymbol] = 1;
-  
-  // 스택된 카드 원소 추가
-  if (card.stacked && card.stacked.length > 0) {
-    for (const stackedCard of card.stacked) {
-      if (stackedCard.originalElement) {
-        const stackSymbol = stackedCard.originalElement.symbol;
-        if (elementCounts[stackSymbol]) {
-          elementCounts[stackSymbol]++;
+  if (onlineGameState.isOnline) {
+    // 턴 상태를 단순화하여 서로 기다리는 상황 방지
+    if (onlineGameState.playerTurnEnded && onlineGameState.waitingForOpponent) {
+      // 플레이어가 턴을 종료했고 상대방을 기다리는 중
+      if (endTurnBtn) {
+        endTurnBtn.textContent = '상대방 대기 중...';
+        endTurnBtn.disabled = true;
+      }
+      if (resultMessage) {
+        resultMessage.textContent = `${gameState.turnCount}턴: 상대방 턴 종료 대기 중`;
+        resultMessage.className = 'text-center text-xl font-bold h-12 text-yellow-400';
+      }
+    } else {
+      // 일반적인 플레이어 턴 (상대방 턴 종료 상태 무시)
+      if (endTurnBtn) {
+        endTurnBtn.textContent = '턴 종료';
+        endTurnBtn.disabled = false;
+        endTurnBtn.onclick = endTurn;
+      }
+      if (resultMessage) {
+        if (gameState.isPlayerTurn) {
+          resultMessage.textContent = `${gameState.turnCount}턴: 플레이어 차례`;
+          resultMessage.className = 'text-center text-xl font-bold h-12 text-blue-400';
         } else {
-          elementCounts[stackSymbol] = 1;
+          resultMessage.textContent = `${gameState.turnCount}턴: 상대방 차례`;
+          resultMessage.className = 'text-center text-xl font-bold h-12 text-red-400';
         }
       }
     }
   }
-  
-  // 가능한 분자 반응 찾기
-  const possibleMolecules = [];
-  
-  gameState.reactionsData.forEach(reaction => {
-    // 필요한 원소 카운트 계산
-    const requiredElements = {};
-    let needsMoreElements = false;
-    
-    // 반응에 필요한 원소 카운트
-    for (const elementId of reaction.elements) {
-      const element = getElementByNumber(elementId);
-      if (!element) continue;
-      
-      const elementSymbol = element.symbol;
-      if (requiredElements[elementSymbol]) {
-        requiredElements[elementSymbol]++;
-      } else {
-        requiredElements[elementSymbol] = 1;
-      }
-    }
-    
-    // 현재 보유한 원소와 필요한 원소 비교
-    for (const [symbol, count] of Object.entries(requiredElements)) {
-      if (!elementCounts[symbol] || elementCounts[symbol] < count) {
-        needsMoreElements = true;
-        break;
-      }
-    }
-    
-    // 분자 생성 가능성 확인
-    if (!needsMoreElements) {
-      // 이미 충분한 원소가 있는 경우 (바로 제작 가능)
-      const molecule = createMoleculeFromReaction(reaction);
-      if (molecule) {
-        molecule.status = 'ready';
-        possibleMolecules.push(molecule);
-      }
-    } else {
-      // 더 많은 원소가 필요한 경우
-      const missingElements = {};
-      let totalMissing = 0;
-      
-      for (const [symbol, count] of Object.entries(requiredElements)) {
-        const currentCount = elementCounts[symbol] || 0;
-        if (currentCount < count) {
-          const missing = count - currentCount;
-          missingElements[symbol] = missing;
-          totalMissing += missing;
-        }
-      }
-      
-      // 분자 1-2개 원소만 부족한 경우 표시
-      if (totalMissing <= 2) {
-        const molecule = createMoleculeFromReaction(reaction);
-        if (molecule) {
-          molecule.status = 'missing';
-          molecule.missingElements = missingElements;
-          possibleMolecules.push(molecule);
-        }
-      }
-    }
+}
+
+// 온라인 게임 상태 동기화
+function syncGameState() {
+  if (onlineGameState.isOnline && onlineGameState.socket) {
+    onlineGameState.socket.emit('syncGameState', gameState);
+  }
+}
+
+// 온라인 게임 상태 업데이트
+function updateOnlineGameState(newGameState) {
+  console.log('게임 상태 동기화 시작:', {
+    oldTurnCount: gameState.turnCount,
+    newTurnCount: newGameState.turnCount,
+    oldIsPlayerTurn: gameState.isPlayerTurn,
+    newIsPlayerTurn: newGameState.isPlayerTurn,
+    oldPlayerCoins: gameState.playerCoins,
+    newPlayerCoins: newGameState.playerCoins
   });
   
-  return possibleMolecules;
-}
-
-/**
- * 카드 힐링 효과 체크 및 적용
- * 회복 효과가 있는 카드들의 힐링 능력을 확인하고 적용합니다.
- */
-function checkCardHealing() {
-  // 플레이어 카드 힐링 효과 확인
-  document.querySelectorAll('.player-slot .card').forEach(card => {
-    // 카드가 힐링 효과를 가지고 있는지 확인
-    const effectType = card.getAttribute('data-effect-type');
-    const effectValue = parseInt(card.getAttribute('data-effect-value')) || 0;
-    
-    if (effectType === 'heal' && effectValue > 0) {
-      // 카드 자신 힐링
-      healCard(card, effectValue);
-      
-      // 인접한 플레이어 카드들에게 힐링 효과 적용 (선택적)
-      const laneElement = card.closest('.battlefield-lane');
-      if (laneElement) {
-        const laneIndex = parseInt(laneElement.id.replace('lane-', ''));
-        applyHealingToAdjacentCards(laneIndex, effectValue, 'player');
-      }
-    }
+  // 온라인 모드에서는 난이도 동기화 제거 (플레이어 vs 플레이어이므로)
+  // 난이도는 오프라인 모드에서만 사용
+  
+  // 서버에서 받은 게임 상태로 업데이트 (개별 플레이어 상태 포함)
+  Object.assign(gameState, newGameState);
+  
+  console.log('게임 상태 업데이트 완료:', {
+    turnCount: gameState.turnCount,
+    isPlayerTurn: gameState.isPlayerTurn,
+    playerCoins: gameState.playerCoins,
+    computerCoins: gameState.computerCoins
   });
   
-  // 컴퓨터 카드 힐링 효과 확인
-  document.querySelectorAll('.computer-slot .card').forEach(card => {
-    // 카드가 힐링 효과를 가지고 있는지 확인
-    const effectType = card.getAttribute('data-effect-type');
-    const effectValue = parseInt(card.getAttribute('data-effect-value')) || 0;
-    
-    if (effectType === 'heal' && effectValue > 0) {
-      // 카드 자신 힐링
-      healCard(card, effectValue);
-      
-      // 인접한 컴퓨터 카드들에게 힐링 효과 적용 (선택적)
-      const laneElement = card.closest('.battlefield-lane');
-      if (laneElement) {
-        const laneIndex = parseInt(laneElement.id.replace('lane-', ''));
-        applyHealingToAdjacentCards(laneIndex, effectValue, 'computer');
-      }
-    }
-  });
-  
-  console.log('카드 회복 효과가 적용되었습니다.');
-}
-
-/**
- * 카드 힐링 적용
- * @param {HTMLElement} card - 힐링할 카드
- * @param {number} healAmount - 회복량
- */
-function healCard(card, healAmount) {
-  const currentHealth = parseInt(card.getAttribute('data-health')) || 0;
-  const maxHealth = parseInt(card.getAttribute('data-max-health')) || currentHealth;
-  
-  // 최대 체력을 초과하지 않게 회복
-  const newHealth = Math.min(currentHealth + healAmount, maxHealth);
-  
-  // 체력 업데이트
-  card.setAttribute('data-health', newHealth);
-  
-  // 체력 표시 업데이트
-  const healthDisplay = card.querySelector('div:last-child div:last-child');
-  if (healthDisplay) {
-    healthDisplay.textContent = `❤️ ${newHealth}`;
+  // UI 업데이트
+  if (typeof updateUI === 'function') {
+    updateUI();
   }
   
-  // 힐링 시각 효과 (선택적)
-  if (newHealth > currentHealth) {
-    card.classList.add('card-heal');
-    setTimeout(() => {
-      card.classList.remove('card-heal');
-    }, 1000);
-  }
-}
-
-/**
- * 인접 카드에 힐링 효과 적용
- * @param {number} laneIndex - 현재 레인 인덱스
- * @param {number} healAmount - 회복량
- * @param {string} side - 'player' 또는 'computer'
- */
-function applyHealingToAdjacentCards(laneIndex, healAmount, side) {
-  // 인접한 레인 인덱스 계산
-  const adjacentLanes = [laneIndex - 1, laneIndex + 1].filter(idx => idx >= 0 && idx <= 4);
-  
-  // 인접 레인의 카드에 힐링 적용
-  adjacentLanes.forEach(idx => {
-    const lane = document.getElementById(`lane-${idx}`);
-    if (lane) {
-      const slot = lane.querySelector(side === 'player' ? '.player-slot' : '.computer-slot');
-      const card = slot?.querySelector('.card');
-      
-      if (card) {
-        // 회복량 감소 (인접한 카드는 효과가 50% 감소)
-        const reducedHeal = Math.max(1, Math.floor(healAmount / 2));
-        healCard(card, reducedHeal);
-      }
-    }
-  });
-}
-
-// 기지 디스플레이 업데이트
-function updateBaseDisplay(side, hp) {
-  // hp가 정의되지 않았거나 숫자가 아닌 경우 처리
-  let displayHP = hp;
-  if (displayHP === undefined || isNaN(displayHP)) {
-    console.error(`${side} 기지 체력 값이 유효하지 않습니다: ${hp}`);
-    // 기본값으로 복구
-    displayHP = side === 'player' ? 
-      (battlefield?.bases?.player?.hp || 100) : 
-      (battlefield?.bases?.computer?.hp || 100);
+  // 점수 표시 업데이트
+  if (typeof updateScoreDisplay === 'function') {
+    updateScoreDisplay();
   }
   
-  // 유효한 체력값인지 확인 (음수 방지)
-  displayHP = Math.max(0, displayHP);
-  
-  // 최대 체력 (기본값 100)
-  const maxHP = 100;
-  
-  // 체력 백분율 계산
-  const hpPercentage = Math.max(0, Math.min(100, (displayHP / maxHP) * 100));
-  
-  // 요소 ID 설정
-  const hpId = side === 'player' ? 'player-base-hp' : 'computer-base-hp';
-  const barId = side === 'player' ? 'player-base-hp-bar' : 'computer-base-hp-bar';
-  
-  // 체력 숫자 표시 업데이트
-  const hpElement = document.getElementById(hpId);
-  if (hpElement) {
-    hpElement.textContent = Math.floor(displayHP); // 정수로 표시
-    
-    // 낮은 체력일 때 시각적 피드백
-    if (hpPercentage <= 25) {
-      hpElement.classList.add('text-red-500');
-      hpElement.classList.add('font-bold');
-    } else if (hpPercentage <= 50) {
-      hpElement.classList.add('text-yellow-500');
-      hpElement.classList.remove('text-red-500');
-    } else {
-      hpElement.classList.remove('text-yellow-500');
-      hpElement.classList.remove('text-red-500');
-    }
+  // 턴 표시 업데이트
+  if (typeof updateTurnIndicator === 'function') {
+    updateTurnIndicator();
   }
   
-  // 체력 바 업데이트
-  const barElement = document.getElementById(barId);
-  if (barElement) {
-    barElement.style.width = `${hpPercentage}%`;
-    
-    // 체력에 따른 색상 변경
-    if (hpPercentage <= 25) {
-      barElement.classList.remove('bg-yellow-500');
-      barElement.classList.add('bg-red-500');
-    } else if (hpPercentage <= 50) {
-      barElement.classList.remove('bg-red-500');
-      barElement.classList.add('bg-yellow-500');
-    } else {
-      barElement.classList.remove('bg-yellow-500');
-      barElement.classList.remove('bg-red-500');
-      
-      // 원래 색상으로 복원
-      if (side === 'player') {
-        barElement.classList.add('bg-blue-500');
-      } else {
-        barElement.classList.add('bg-red-500');
-      }
-    }
-    
-    // 체력이 낮을 때 애니메이션 효과 (선택적)
-    if (hpPercentage <= 15) {
-      barElement.classList.add('animate-pulse');
-    } else {
-      barElement.classList.remove('animate-pulse');
-    }
+  // 코인 표시 업데이트
+  if (typeof updateCoinDisplay === 'function') {
+    updateCoinDisplay('player');
+    updateCoinDisplay('computer');
   }
-  
-  // 체력이 0이 되면 게임 결과 처리 (이미 다른 곳에서 처리되는 경우 제거)
-  if (displayHP <= 0) {
-    // 게임 결과 처리 함수가 있는 경우 호출 (옵션)
-    if (typeof checkGameOver === 'function') {
-      checkGameOver(); 
-    }
-  }
-}
-
-// damageBase 함수 수정
-function damageBase(side, damage) {
-  // 기지 정보 접근
-  const base = battlefield.bases[side];
-  if (!base) return;
-  
-  // 데미지가 숫자인지 확인
-  damage = Number(damage) || 0;
-  
-  // base.hp가 숫자인지 확인
-  if (isNaN(base.hp)) {
-    console.error(`${side} 기지의 체력이 숫자가 아닙니다: ${base.hp}`);
-    base.hp = base.maxHp || 100;  // 최대 체력 또는 기본값으로 초기화
-  }
-  
-  // 체력 감소
-  base.hp = Math.max(0, base.hp - damage);
   
   // 기지 표시 업데이트
-  updateBaseDisplay(side, base.hp);
+  if (typeof updateBaseDisplay === 'function') {
+    updateBaseDisplay();
+  }
   
-  // 체력이 0이면 게임 종료
-  if (base.hp <= 0) {
-    endGame(side === 'computer', side === 'player' ? 
-      '승리! 적 과학 기지를 파괴했습니다!' : 
-      '패배! 과학 기지가 파괴되었습니다.');
+  // 온라인 턴 UI 업데이트
+  if (typeof updateOnlineTurnUI === 'function') {
+    updateOnlineTurnUI();
+  }
+  
+  console.log('게임 상태 동기화 완료');
+}
+
+// 온라인 게임에서 턴 종료 처리 - 서버에서 자동 처리되므로 제거됨
+function processOnlineTurnEnd() {
+  // 이 함수는 더 이상 사용되지 않음 - 서버에서 턴 동기화 처리
+  console.log('processOnlineTurnEnd 호출됨 - 서버에서 턴 동기화 처리 중');
+}
+
+// 턴 종료 대기 시간 제한 제거됨 - 서버에서 턴 동기화 처리
+let turnTimeoutId = null;
+
+function startTurnTimeout() {
+  // 타임아웃 로직 제거됨 - 서버에서 턴 동기화 처리
+  console.log('턴 종료 신호 전송됨, 서버에서 턴 동기화 대기 중...');
+}
+
+function clearTurnTimeout() {
+  if (turnTimeoutId) {
+    clearTimeout(turnTimeoutId);
+    turnTimeoutId = null;
   }
 }
 
-// 전투 필드 렌더링 함수
-// 현재 게임 상태에 따라 전장의 모든 카드와 상태를 업데이트합니다.
-function renderBattlefield() {
-  // 각 레인 업데이트
-  battlefield.lanes.forEach((lane, laneIndex) => {
-    const laneElement = document.getElementById(`lane-${laneIndex}`);
-    if (!laneElement) return;
+// 온라인 게임 종료
+function endOnlineGame() {
+  if (onlineGameState.isOnline) {
+    onlineGameState.isOnline = false;
+    onlineGameState.roomId = '';
+    onlineGameState.opponentName = '';
+    onlineGameState.socket = null;
+    onlineGameState.isHost = false;
     
-    // 플레이어 슬롯 업데이트
-    const playerSlot = laneElement.querySelector('.player-slot');
-    if (playerSlot) {
-      // 기존 카드 제거
-      while (playerSlot.firstChild) {
-        playerSlot.removeChild(playerSlot.firstChild);
+    updateOnlineModeUI();
+    
+    // 온라인 매칭 시스템에 게임 종료 알림
+    if (window.onlineMatching) {
+      window.onlineMatching.endOnlineGame();
+    }
+  }
+}
+
+// 게임 리셋 시 온라인 모드도 리셋
+const originalResetGame = window.resetGame;
+window.resetGame = function() {
+  if (originalResetGame) {
+    originalResetGame();
+  }
+  
+  // 온라인 모드가 아닌 경우에만 리셋
+  if (!onlineGameState.isOnline) {
+    endOnlineGame();
+  }
+};
+
+// 전장 상태 동기화
+function syncBattlefield(newBattlefield) {
+  if (newBattlefield) {
+    console.log('전장 상태 동기화 시작:', newBattlefield);
+    
+    // 전장 상태 업데이트
+    Object.assign(battlefield, newBattlefield);
+    
+    // 전장 렌더링
+    if (typeof renderBattlefield === 'function') {
+      renderBattlefield();
+    }
+    
+    // UI 업데이트
+    if (typeof updateUI === 'function') {
+      updateUI();
+    }
+    
+    // 기지 표시 업데이트
+    if (typeof updateBaseDisplay === 'function') {
+      updateBaseDisplay();
+    }
+    
+    console.log('전장 상태가 동기화되었습니다.');
+  }
+}
+
+// 카드 배치 동기화 (Socket.IO 기반)
+function syncCardPlacement(data) {
+  console.log('카드 배치 동기화 시작:', data);
+  
+  if (data.card && data.laneIndex >= 0 && data.laneIndex < battlefield.lanes.length) {
+    const lane = battlefield.lanes[data.laneIndex];
+    if (lane) {
+      // 카드 정보 설정
+      const card = data.card;
+      // owner는 서버에서 받은 원본 값 유지, side는 화면 표시용
+      card.lastDamageTurn = gameState.turnCount;
+      
+      // 카드 이름 설정
+      if (card.element) {
+        card.name = card.element.name;
+      } else if (!card.name) {
+        card.name = '알 수 없는 카드';
       }
       
-      // 플레이어 카드가 있으면 렌더링
-      if (lane.player) {
-        const cardElement = createCardElement(lane.player, 'player');
-        playerSlot.appendChild(cardElement);
-      }
-    }
-    
-    // 컴퓨터 슬롯 업데이트
-    const computerSlot = laneElement.querySelector('.computer-slot');
-    if (computerSlot) {
-      // 기존 카드 제거
-      while (computerSlot.firstChild) {
-        computerSlot.removeChild(computerSlot.firstChild);
+      // 카드 ID가 없으면 생성
+      if (!card.id) {
+        card.id = `card_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       }
       
-      // 컴퓨터 카드가 있으면 렌더링
-      if (lane.computer) {
-        const cardElement = createCardElement(lane.computer, 'computer');
-        computerSlot.appendChild(cardElement);
+      // 카드 타입 설정
+      if (!card.type) {
+        card.type = 'element';
       }
-    }
-  });
-  
-  // 기지 상태 업데이트
-  if (battlefield.bases) {
-    // 플레이어 기지
-    if (battlefield.bases.player) {
-      updateBaseDisplay('player', battlefield.bases.player.hp);
-    }
-    
-    // 컴퓨터 기지
-    if (battlefield.bases.computer) {
-      updateBaseDisplay('computer', battlefield.bases.computer.hp);
-    }
-  }
-  
-  // 화학 반응 가능성 체크 (옵션)
-  checkAllLanesForReactions();
-}
-
-/**
- * 카드 요소 생성
- * @param {Object} card - 카드 데이터
- * @param {string} side - 'player' 또는 'computer'
- * @returns {HTMLElement} - 생성된 카드 요소
- */
-function createCardElement(card, side) {
-  const cardElement = document.createElement('div');
-  cardElement.className = `card ${card.isSkull ? 'skull-card' : ''} ${side === 'player' ? 'player-card' : 'computer-card'}`;
-  
-  if (card.isMolecule) {
-    // 분자 카드 스타일
-    cardElement.classList.add('molecule-card');
-    cardElement.classList.add(card.color || 'bg-purple-600');
-  } else if (card.isSkull) {
-    // 파괴된 카드 스타일
-    cardElement.classList.add('bg-gray-800');
-  } else {
-    // 일반 원소 카드 스타일
-    cardElement.classList.add(card.element.color || 'bg-gray-500');
-  }
-  
-  cardElement.classList.add('p-2', 'rounded-lg', 'shadow-lg', 'w-full', 'relative');
-  
-  // 카드 ID 설정
-  cardElement.setAttribute('data-card-id', card.id);
-  
-  // 원소 정보 설정
-  if (!card.isSkull) {
-    const elementSymbol = card.isMolecule ? card.formula : card.element.symbol;
-    cardElement.setAttribute('data-element', elementSymbol);
-    
-    // 능력치 설정
-    cardElement.setAttribute('data-power', card.atk);
-    cardElement.setAttribute('data-health', card.hp);
-    cardElement.setAttribute('data-max-health', card.maxHp);
-    
-    // 레벨 설정
-    if (card.upgradeLevel) {
-      cardElement.setAttribute('data-level', card.upgradeLevel);
-    }
-    
-    // 특수 효과 설정
-    if (card.effectType) {
-      cardElement.setAttribute('data-effect-type', card.effectType);
-      cardElement.setAttribute('data-effect-value', card.effectValue);
-      if (card.effectDuration) {
-        cardElement.setAttribute('data-effect-duration', card.effectDuration);
+      
+      // 전장에 카드 배치 - 서버에서 받은 side 값을 사용하여 올바른 위치에 배치
+      // 서버에서 이미 각 플레이어의 관점에 맞게 side 값을 설정해줌
+      const displaySide = data.side || 'player';
+      lane[displaySide] = card;
+      
+      console.log(`카드 배치됨: ${card.name} (ID: ${card.id})이 라인 ${data.laneIndex}의 ${displaySide}에 배치됨 (owner: ${card.owner}, displaySide: ${displaySide})`);
+      
+      // 전장 렌더링
+      if (typeof renderBattlefield === 'function') {
+        renderBattlefield();
       }
-    }
-  }
-  
-  // 카드 내용 설정
-  if (card.isSkull) {
-    cardElement.innerHTML = `
-      <div class="text-center font-bold text-gray-300">☠️</div>
-      <div class="text-center text-sm text-gray-300">파괴됨</div>
-    `;
-  } else if (card.isMolecule) {
-    // 분자 카드 내용
-    cardElement.innerHTML = `
-      <div class="text-center font-bold text-white text-lg">${card.formula}</div>
-      <div class="text-center text-white text-sm mb-1">${card.name}</div>
-      <div class="flex justify-between text-sm text-white">
-        <div>⚔️ ${card.atk}</div>
-        <div>❤️ ${card.hp}</div>
-      </div>
-      ${card.effectType ? `<div class="text-xs mt-1 text-center text-purple-200">${getEffectText(card)}</div>` : ''}
-    `;
-    
-    // 특수 효과 아이콘
-    if (card.effectType) {
-      const effectIcon = document.createElement('div');
-      effectIcon.className = 'special-ability absolute top-1 right-1 bg-yellow-500 text-yellow-900 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold';
-      effectIcon.textContent = getEffectIcon(card.effectType);
-      cardElement.appendChild(effectIcon);
+      
+      // UI 업데이트
+      if (typeof updateUI === 'function') {
+        updateUI();
+      }
+      
+      console.log('카드 배치 동기화 완료');
     }
   } else {
-    // 일반 원소 카드 내용
-    cardElement.innerHTML = `
-      <div class="text-center font-bold">${card.element.symbol}</div>
-      <div class="text-center text-sm">${card.element.name}</div>
-      <div class="flex justify-between text-sm mt-1">
-        <div>⚔️ ${card.atk}</div>
-        <div>❤️ ${card.hp}</div>
-      </div>
-      ${card.upgradeLevel ? `<div class="text-xs mt-1 text-center opacity-70">Lv ${card.upgradeLevel}</div>` : ''}
-    `;
+    console.error('카드 배치 동기화 실패: 잘못된 데이터', data);
   }
-  
-  // 강화 레벨 표시
-  if (card.upgradeLevel && card.upgradeLevel > 0) {
-    // 강화 레벨에 따른 별 표시 추가
-    const upgradeMarker = document.createElement('div');
-    upgradeMarker.className = 'absolute top-1 right-1 bg-yellow-500 text-yellow-900 rounded-full px-1 text-xs font-bold';
-    
-    // 레벨에 따른 별 개수
-    let stars = '';
-    for (let i = 0; i < card.upgradeLevel; i++) {
-      stars += '★';
+}
+
+// 카드 뽑기 동기화 (Socket.IO 기반)
+function syncCardDraw(data) {
+  if (data.side && data.cardCount) {
+    // 상대방의 카드 뽑기 알림만 표시 (실제 카드는 서버에서 관리)
+    if (typeof showMessage === 'function') {
+      showMessage(`${data.playerName}이 ${data.cardCount}장의 카드를 뽑았습니다.`, 'info');
     }
     
-    upgradeMarker.textContent = stars;
-    cardElement.appendChild(upgradeMarker);
+    console.log(`카드 뽑기 동기화: ${data.playerName}이 ${data.cardCount}장의 카드를 뽑음`);
   }
-  
-  return cardElement;
 }
 
-/**
- * 효과 아이콘 가져오기
- * @param {string} effectType - 효과 유형
- * @returns {string} - 아이콘 문자
- */
-function getEffectIcon(effectType) {
-  const icons = {
-    'heal': '💖',
-    'damage': '💥',
-    'poison': '☠️',
-    'burn': '🔥',
-    'freeze': '❄️',
-    'defense': '🛡️',
-    'boost': '⚡',
-    'corrode': '💧'
-  };
-  
-  return icons[effectType] || '✨';
-}
-
-/**
- * 효과 설명 텍스트 가져오기
- * @param {Object} card - 카드 객체
- * @returns {string} - 효과 설명
- */
-function getEffectText(card) {
-  if (!card || !card.effectType) return '';
-  
-  const descriptions = {
-    'heal': `회복: 매 턴 ${card.effectValue} 회복`,
-    'damage': `피해: 공격 시 ${card.effectValue} 추가 피해`,
-    'poison': `중독: ${card.effectDuration || 2}턴간 ${card.effectValue} 피해`,
-    'burn': `화상: ${card.effectDuration || 2}턴간 ${card.effectValue} 피해`,
-    'freeze': `빙결: ${card.effectDuration || 1}턴간 행동 불가`,
-    'defense': `방어: ${card.effectValue} 방어력 제공`,
-    'boost': `강화: 아군 공격력 ${card.effectValue} 증가`,
-    'corrode': `부식: 방어력 무시 ${card.effectValue} 피해`
-  };
-  
-  return descriptions[card.effectType] || '특수 효과';
-}
-
-/**
- * 모든 레인에서 화학 반응 가능성 확인
- */
-function checkAllLanesForReactions() {
-  battlefield.lanes.forEach((lane, laneIndex) => {
-    // 플레이어 슬롯에서 반응 가능성 체크
-    const playerSlot = document.querySelector(`#lane-${laneIndex} .player-slot`);
-    if (playerSlot && playerSlot.children.length > 1) {
-      if (typeof checkForReactions === 'function') {
-        checkForReactions(playerSlot);
-      }
-    }
-    
-    // 컴퓨터 슬롯에서 반응 가능성 체크
-    const computerSlot = document.querySelector(`#lane-${laneIndex} .computer-slot`);
-    if (computerSlot && computerSlot.children.length > 1) {
-      if (typeof checkForReactions === 'function') {
-        checkForReactions(computerSlot);
-      }
-    }
-  });
-}
-
-// 전역으로 함수 노출
-window.updateBaseDisplay = updateBaseDisplay;
-window.renderBattlefield = renderBattlefield;
-window.createCardElement = createCardElement;
-window.createRandomCardByRarity = createRandomCardByRarity;
-window.selectRandomRarity = selectRandomRarity;
+// 전역 변수와 함수로 노출
+window.gameState = gameState;
+window.battlefield = battlefield;
+window.onlineGameState = onlineGameState;
+window.setOnlineMode = setOnlineMode;
+window.syncGameState = syncGameState;
+window.updateOnlineGameState = updateOnlineGameState;
+window.endOnlineGame = endOnlineGame;
+window.updateOnlineTurnUI = updateOnlineTurnUI;
+window.processOnlineTurnEnd = processOnlineTurnEnd;
+window.syncBattlefield = syncBattlefield;
+window.syncCardPlacement = syncCardPlacement;
+window.syncCardDraw = syncCardDraw;
+window.startTurnTimeout = startTurnTimeout;
+window.clearTurnTimeout = clearTurnTimeout;

@@ -32,7 +32,7 @@ function closeTutorial() {
   
   // 게임이 아직 시작되지 않았으면 시작
   if (gameState.playerHand.length === 0) {
-    giveInitialCards();
+    giveInitialCardsAndCoins();
   }
 }
 
@@ -82,52 +82,38 @@ function setTutorialStep(step) {
   }
 }
 
-// 튜토리얼 이미지 불러오지 않고 대체 텍스트로 표시
+// 튜토리얼 이미지 자리 표시자를 실제 텍스트로 대체
 function setupTutorialImages() {
   document.querySelectorAll('[src^="src/images/tutorial/"]').forEach(img => {
-    // 이미지를 로드하지 않고 텍스트 대체 요소로 변경
-    const placeholderDiv = document.createElement('div');
-    placeholderDiv.className = 'tutorial-image-placeholder bg-gradient-to-r from-gray-700 to-gray-800 rounded-lg p-4 flex items-center justify-center h-40';
-    
-    const iconSpan = document.createElement('span');
-    iconSpan.className = 'text-3xl mr-2';
-    
-    const textSpan = document.createElement('span');
-    textSpan.className = 'text-gray-300 italic';
-    
+    const placeholderText = document.createElement('span');
     switch (img.getAttribute('alt')) {
       case '게임 화면':
-        iconSpan.textContent = '🎮';
-        textSpan.textContent = "주기율표의 원소들로 전략적 배틀을 즐기세요";
+        placeholderText.textContent = "게임 화면 이미지 (아직 로드되지 않음)";
         break;
       case '카드 뽑기':
-        iconSpan.textContent = '🃏';
-        textSpan.textContent = "코인으로 다양한 희귀도의 카드를 뽑을 수 있습니다";
+        placeholderText.textContent = "카드 뽑기 방법 설명";
         break;
       case '전투 화면':
-        iconSpan.textContent = '⚔️';
-        textSpan.textContent = "카드를 배치하고 전략적으로 공격하세요";
+        placeholderText.textContent = "전투 진행 방식 설명";
         break;
       case '분자 합성':
-        iconSpan.textContent = '🧪';
-        textSpan.textContent = "같은 자리에 원소를 쌓아 강력한 분자를 만드세요";
+        placeholderText.textContent = "분자 합성 과정 설명";
         break;
       case '카드 강화':
-        iconSpan.textContent = '⚡';
-        textSpan.textContent = "코인으로 카드를 강화하여 더욱 강력하게 만드세요";
+        placeholderText.textContent = "카드 강화 방법 설명";
         break;
       default:
-        iconSpan.textContent = '📋';
-        textSpan.textContent = "튜토리얼에 오신 것을 환영합니다";
+        placeholderText.textContent = "튜토리얼 이미지";
     }
     
-    placeholderDiv.appendChild(iconSpan);
-    placeholderDiv.appendChild(textSpan);
-    
-    // 이미지를 대체 요소로 교체
-    img.parentNode.replaceChild(placeholderDiv, img);
+    img.parentNode.insertBefore(placeholderText, img);
+    img.style.display = 'none';
   });
 }
 
 // 페이지 로드 시 튜토리얼 이미지 설정
 document.addEventListener('DOMContentLoaded', setupTutorialImages);
+
+// Expose functions to the global scope
+window.showTutorial = showTutorial;
+window.initializeTutorial = initTutorial;

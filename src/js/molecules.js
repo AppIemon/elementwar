@@ -5,7 +5,6 @@ class Molecule {
     this.elements = elements;
     this.effect = effect;
     this.icon = this.generateIcon();
-    this.upgradeLevel = 0; // 분자도 업그레이드 가능
   }
 
   generateIcon() {
@@ -64,83 +63,23 @@ class Molecule {
 
     const handler = effectHandlers[this.effect.type];
     if (handler) {
-      const result = handler.call(this, sourceCard, targetCard, battlefield);
-      
-      // 업그레이드 레벨에 따른 효과 강화
-      if (sourceCard.upgradeLevel > 0) {
-        this.applyUpgradedEffect(sourceCard, targetCard);
-      }
-      
-      return result;
+      return handler.call(this, sourceCard, targetCard, battlefield);
     }
     
     return false;
   }
-  
-  // 업그레이드 레벨에 따른 추가 효과 적용
-  applyUpgradedEffect(sourceCard, targetCard) {
-    // 레벨에 따른 추가 효과
-    if (sourceCard.upgradeLevel >= 3) {
-      // 레벨 3 효과 - 효과 지속시간 증가
-      for (const effect of targetCard.effects) {
-        if (effect.duration) {
-          effect.duration += 1;
-        }
-      }
-      
-      // 추가 피해나 회복
-      if (this.effect.value) {
-        if (this.effect.type.includes('damage') || this.effect.type.includes('burn')) {
-          targetCard.hp -= Math.floor(this.effect.value * 0.5); // 50% 추가 피해
-          showMessage(`강화된 분자가 추가 피해를 입혔습니다!`, 'warning');
-        } else if (this.effect.type.includes('heal')) {
-          sourceCard.hp = Math.min(sourceCard.maxHp, sourceCard.hp + Math.floor(this.effect.value * 0.5)); // 50% 추가 회복
-          showMessage(`강화된 분자가 추가 회복 효과를 발휘했습니다!`, 'success');
-        }
-      }
-    }
-    
-    // 레벨 2 효과 - 효과 강도 증가
-    else if (sourceCard.upgradeLevel >= 2) {
-      if (this.effect.value) {
-        // 효과 값 30% 증가
-        if (this.effect.type.includes('damage') || this.effect.type.includes('burn')) {
-          targetCard.hp -= Math.floor(this.effect.value * 0.3); // 30% 추가 피해
-        } else if (this.effect.type.includes('heal')) {
-          sourceCard.hp = Math.min(sourceCard.maxHp, sourceCard.hp + Math.floor(this.effect.value * 0.3)); // 30% 추가 회복
-        }
-      }
-    }
-    
-    // 레벨 1 효과 - 지속시간 약간 증가
-    else if (sourceCard.upgradeLevel >= 1) {
-      // 효과 지속시간 +1
-      for (const effect of targetCard.effects) {
-        if (effect.duration) {
-          effect.duration += 1;
-        }
-      }
-    }
-  }
 
-  // 여기서부터는 기존의 효과 처리 메서드들...
   applyBoostAttack(sourceCard, targetCard) {
-    // 효과 강도 향상 (업그레이드 레벨 반영)
-    const boostValue = this.effect.value + (sourceCard.upgradeLevel || 0);
-    sourceCard.atk += boostValue;
-    targetCard.atk += boostValue;
-    showMessage(`${this.name}의 효과로 공격력이 ${boostValue} 증가했습니다!`, 'success');
+    sourceCard.atk += this.effect.value;
+    targetCard.atk += this.effect.value;
     return true;
   }
 
   applyBoostHealth(sourceCard, targetCard) {
-    // 효과 강도 향상 (업그레이드 레벨 반영)
-    const boostValue = this.effect.value + (sourceCard.upgradeLevel * 2 || 0);
-    sourceCard.hp += boostValue;
-    sourceCard.maxHp += boostValue;
-    targetCard.hp += boostValue;
-    targetCard.maxHp += boostValue;
-    showMessage(`${this.name}의 효과로 체력이 ${boostValue} 증가했습니다!`, 'success');
+    sourceCard.hp += this.effect.value;
+    sourceCard.maxHp += this.effect.value;
+    targetCard.hp += this.effect.value;
+    targetCard.maxHp += this.effect.value;
     return true;
   }
 
@@ -687,454 +626,525 @@ class Molecule {
   }
 }
 
-// 효과 설명 문자열 생성 함수 강화
+// 효과 설명 문자열 생성 함수 추가
 Molecule.prototype.getEffectDescription = function() {
   if (!this.effect) return '효과 없음';
-  
-  let description = '';
   
   // 효과 유형별로 보기 좋게 표시
   switch (this.effect.type) {
     case 'boost_attack':
-      description = `공격력 +${this.effect.value}`;
-      break;
+      return `공격력 +${this.effect.value}`;
     case 'boost_health':
-      description = `체력 +${this.effect.value}`;
-      break;
+      return `체력 +${this.effect.value}`;
     case 'damage':
-      description = `피해량 ${this.effect.value}`;
-      break;
+      return `피해량 ${this.effect.value}`;
     case 'explosive':
-      description = `폭발 피해 (즉사)`;
-      break;
+      return `폭발 피해 (즉사)`;
     case 'damage_over_time':
-      description = `${this.effect.duration || 1}턴 동안 매턴 ${this.effect.value} 피해`;
-      break;
+      return `${this.effect.duration || 1}턴 동안 매턴 ${this.effect.value} 피해`;
     case 'corrosive':
-      description = `방어력 -${this.effect.value}`;
-      break;
+      return `방어력 -${this.effect.value}`;
     case 'explosive_damage':
-      description = `폭발 피해 ${this.effect.value}${this.effect.aoe ? ' (주변 피해)' : ''}`;
-      break;
+      return `폭발 피해 ${this.effect.value}${this.effect.aoe ? ' (주변 피해)' : ''}`;
     case 'shield_reduction':
-      description = `보호막 감소 ${this.effect.value}`;
-      break;
+      return `보호막 감소 ${this.effect.value}`;
     case 'suffocation':
-      description = `질식: 공격력 20% 감소`;
-      break;
+      return `질식: 공격력 20% 감소`;
     case 'acid_damage':
-      description = `산성 피해 ${this.effect.value} (방어력 관통)`;
-      break;
+      return `산성 피해 ${this.effect.value} (방어력 관통)`;
     case 'freeze':
-      description = `${this.effect.duration || 1}턴 동안 행동 불가`;
-      break;
+      return `${this.effect.duration || 1}턴 동안 행동 불가`;
     case 'intoxication':
-      description = `중독: 공격이 불규칙해짐`;
-      break;
+      return `중독: 공격이 불규칙해짐`;
     case 'poison':
-      description = `독: ${this.effect.duration || 1}턴 동안 매턴 ${this.effect.value} 피해`;
-      break;
+      return `독: ${this.effect.duration || 1}턴 동안 매턴 ${this.effect.value} 피해`;
     case 'heal_over_time':
-      description = `${this.effect.duration || 1}턴 동안 매턴 ${this.effect.value} 회복`;
-      break;
+      return `${this.effect.duration || 1}턴 동안 매턴 ${this.effect.value} 회복`;
     case 'base_damage':
-      description = `염기성 피해 ${this.effect.value} (산성과 반응 시 2배 피해)`;
-      break;
+      return `염기성 피해 ${this.effect.value} (산성과 반응 시 2배 피해)`;
     case 'burn':
-      description = `화상: ${this.effect.duration || 1}턴 동안 매턴 ${this.effect.value} 피해`;
-      break;
+      return `화상: ${this.effect.duration || 1}턴 동안 매턴 ${this.effect.value} 피해`;
     case 'armor':
-      description = `방어력 +${this.effect.value}`;
-      break;
+      return `방어력 +${this.effect.value}`;
     case 'barrier':
-      description = `보호막: ${this.effect.duration || 1}턴 동안 ${this.effect.value} 피해 흡수`;
-      break;
+      return `보호막: ${this.effect.duration || 1}턴 동안 ${this.effect.value} 피해 흡수`;
     case 'catalyst':
-      description = `촉매: 행동 속도 증가`;
-      break;
+      return `촉매: 행동 속도 증가`;
     default:
-      description = this.effect.description || `${this.effect.type} 효과`;
+      return this.effect.description || `${this.effect.type} 효과`;
   }
-  
-  // 업그레이드 레벨에 따른 추가 설명
-  if (this.upgradeLevel >= 3) {
-    description += ' (최대 강화: 효과 지속시간 +1, 효과 강도 +50%)';
-  } else if (this.upgradeLevel >= 2) {
-    description += ' (강화: 효과 강도 +30%)';
-  } else if (this.upgradeLevel >= 1) {
-    description += ' (강화: 효과 지속시간 +1턴)';
-  }
-  
-  return description;
 };
 
-// 분자 카드 생성 함수 개선 - 더 높은 능력치 부여
-function createMoleculeFromReaction(reaction) {
-  if (!reaction.moleculeId) return null;
-  
-  // 분자 기본 정보
-  const molecule = new Molecule(
-    reaction.moleculeId,
-    reaction.moleculeName || reaction.result.split(' ')[0],
-    reaction.elements,
-    reaction.effect || { type: 'default', description: '기본 효과' }
-  );
-  
-  // 분자 등급 결정 (구성 원소 수와 레어도에 따름)
-  const elementCount = reaction.elements.length;
-  let rarity = 'common';
-  
-  if (elementCount >= 5) rarity = 'legendary';
-  else if (elementCount >= 4) rarity = 'epic';
-  else if (elementCount >= 3) rarity = 'rare';
-  else if (elementCount >= 2) rarity = 'uncommon';
-  
-  molecule.rarity = rarity;
-  
-  // 분자 정보 확장
-  const moleculeInfo = getMoleculeInfo(reaction.moleculeId);
-  if (moleculeInfo) {
-    molecule.color = moleculeInfo.color || 'bg-purple-600';
-    molecule.description = moleculeInfo.description;
-    molecule.englishName = moleculeInfo.englishName;
-    molecule.formula = moleculeInfo.formula;
-    
-    // 더 높은 능력치 부여
-    molecule.baseHp = moleculeInfo.baseHp || 10 + elementCount * 3;
-    molecule.baseAtk = moleculeInfo.baseAtk || 8 + elementCount * 2;
-    
-    // 특수 능력
-    molecule.specialAbility = moleculeInfo.specialAbility;
-  } else {
-    // 기본 값 설정
-    molecule.color = 'bg-purple-600';
-    molecule.baseHp = 10 + elementCount * 3;
-    molecule.baseAtk = 8 + elementCount * 2;
-  }
-  
-  return molecule;
-}
-
-// 분자 정보 조회 함수
-function getMoleculeInfo(id) {
-  return MOLECULES_DATABASE.find(m => m.id === id);
-}
-
-// 레어도에 따른 분자 능력치 보너스
-const rarityBonuses = {
-  common: { hp: 1, atk: 1 },
-  uncommon: { hp: 1.2, atk: 1.3 },
-  rare: { hp: 1.4, atk: 1.5 },
-  epic: { hp: 1.7, atk: 1.8 },
-  legendary: { hp: 2, atk: 2.2 }
-};
-
-// 분자 카드 객체 생성 함수
-function createMoleculeCard(molecule, baseCard, stackedCards) {
-  // 기본 능력치 설정
-  const rarity = molecule.rarity || 'uncommon';
-  const bonus = rarityBonuses[rarity] || rarityBonuses.uncommon;
-  
-  // 스택된 카드 능력치 합산
-  let totalHp = baseCard.hp;
-  let totalAtk = baseCard.atk;
-  
-  stackedCards.forEach(card => {
-    if (card.originalHP) totalHp += card.originalHP;
-    if (card.originalATK) totalAtk += card.originalATK;
-  });
-  
-  // 등급에 따른 보너스 적용
-  const hp = Math.ceil(totalHp * bonus.hp);
-  const atk = Math.ceil(totalAtk * bonus.atk);
-  
-  // 카드 객체 생성
-  const card = {
-    id: `molecule-${Math.random().toString(36).substring(2, 9)}`,
-    element: {
-      symbol: molecule.id,
-      name: molecule.name,
-      englishName: molecule.englishName || molecule.name,
-      description: molecule.description || '',
-      number: -1, // 분자는 음수 번호
-      color: molecule.color || 'bg-purple-600',
-      category: '분자',
-      baseHp: molecule.baseHp || hp,
-      baseAtk: molecule.baseAtk || atk,
-      specialAbility: molecule.specialAbility
-    },
-    hp: hp,
-    maxHp: hp,
-    atk: atk,
-    maxAtk: atk,
-    owner: baseCard.owner,
-    isMolecule: true,
-    molecules: molecule,
-    stacked: baseCard.stacked || [],
-    effects: [],
-    
-    // 기본 메서드 구현
-    getHealthRatio: function() {
-      return this.hp / this.maxHp;
-    },
-    
-    isDead: function() {
-      return this.hp <= 0;
-    },
-    
-    addEffect: function(effect) {
-      this.effects.push(effect);
-    },
-    
-    hasEffect: function(effectName) {
-      return this.effects.some(effect => effect.name === effectName);
-    }
-  };
-  
-  // 스택에 원래 카드도 추가
-  card.stacked.push({
-    isSkull: true,
-    originalElement: baseCard.element,
-    originalHP: baseCard.hp,
-    originalATK: baseCard.atk,
-    owner: baseCard.owner
-  });
-  
-  return card;
-}
 
 function getElementByNumber(number) {
   return gameState.elementsData.find(e => e.number === number);
 }
 
-/**
- * 분자 관리 시스템
- */
+// 분자 생성 함수 (화학 반응 대신 직접 분자 생성)
+function createMoleculeFromElements(element1, element2) {
+  if (!gameState || !gameState.moleculesData || !Array.isArray(gameState.elementsData)) return null;
 
-// 분자 데이터베이스 (100개)
-const MOLECULES_DATABASE = [
-  // 1. 물 H₂O
-  {
-    id: 'H2O',
-    formula: 'H₂O',
-    name: '물',
-    englishName: 'Water',
-    components: ['H', 'H', 'O'],
-    description: '지구상에서 가장 중요한 물질 중 하나로, 생명 유지에 필수적입니다.',
-    color: 'bg-blue-400',
-    baseAtk: 6,
-    baseHp: 8,
-    rarity: 'uncommon',
-    effect: { type: 'heal', value: 2 }
-  },
-  // 2. 이산화탄소 CO₂
-  {
-    id: 'CO2',
-    formula: 'CO₂',
-    name: '이산화탄소',
-    englishName: 'Carbon Dioxide',
-    components: ['C', 'O', 'O'],
-    description: '식물 광합성에 필요하며 온실 효과를 일으키는 기체입니다.',
-    color: 'bg-gray-500',
-    baseAtk: 7,
-    baseHp: 7,
-    rarity: 'uncommon',
-    effect: { type: 'poison', value: 1, duration: 2 }
-  },
-  // 3. 메탄 CH₄
-  {
-    id: 'CH4',
-    formula: 'CH₄',
-    name: '메탄',
-    englishName: 'Methane',
-    components: ['C', 'H', 'H', 'H', 'H'],
-    description: '가장 간단한 탄화수소로, 천연가스의 주성분입니다.',
-    color: 'bg-green-600',
-    baseAtk: 10,
-    baseHp: 8,
-    rarity: 'rare',
-    effect: { type: 'burn', value: 3 }
-  },
-  // 추가 분자들...
-  // 4. 암모니아 NH₃
-  {
-    id: 'NH3',
-    formula: 'NH₃',
-    name: '암모니아',
-    englishName: 'Ammonia',
-    components: ['N', 'H', 'H', 'H'],
-    description: '자극적인 냄새가 나는 무색 기체로, 비료 제조에 사용됩니다.',
-    color: 'bg-yellow-300',
-    baseAtk: 9,
-    baseHp: 9,
-    rarity: 'rare',
-    effect: { type: 'poison', value: 2, duration: 3 }
-  },
-  // 5. 염화나트륨(소금) NaCl
-  {
-    id: 'NaCl',
-    formula: 'NaCl',
-    name: '염화나트륨',
-    englishName: 'Sodium Chloride',
-    components: ['Na', 'Cl'],
-    description: '일반적인 소금으로, 음식 조리와 보존에 사용됩니다.',
-    color: 'bg-gray-100',
-    baseAtk: 6,
-    baseHp: 10,
-    rarity: 'uncommon',
-    effect: { type: 'defense', value: 3 }
-  }
-  // 나머지 95개는 실제 구현 시 추가 필요
-];
+  const toSymbol = (num) => gameState.elementsData.find(e => e.number === num)?.symbol;
+  const selCounts = {};
+  [element1, element2].forEach(el => {
+    const sym = el?.element?.symbol || toSymbol(el?.element?.number);
+    if (!sym) return;
+    selCounts[sym] = (selCounts[sym] || 0) + 1;
+  });
 
-/**
- * 지정된 분자 ID에 대한 정보 검색
- * @param {string} id - 분자 ID나 공식
- * @returns {Object|null} - 분자 정보 또는 null
- */
-function getMoleculeInfo(id) {
-  if (!id) return null;
-  
-  // ID 또는 공식으로 분자 정보 검색
-  return MOLECULES_DATABASE.find(m => 
-    m.id === id || m.formula === id || m.formula.replace(/₂|₃|₄/g, '') === id
-  ) || null;
-}
+  const matchingMolecule = gameState.moleculesData.find(mol => {
+    const req = mol.elementCounts || {};
+    const selKeys = Object.keys(selCounts);
+    const reqKeys = Object.keys(req);
+    if (selKeys.length !== reqKeys.length) return false;
+    return reqKeys.every(sym => selCounts[sym] === req[sym]);
+  });
 
-/**
- * 원소 심볼 목록으로 일치하는 분자 검색
- * @param {Array} elements - 원소 심볼 배열
- * @returns {Object|null} - 일치하는 분자 또는 null
- */
-function findMoleculeByElements(elements) {
-  if (!elements || elements.length < 2) return null;
-  
-  // 정렬된 원소 목록
-  const sortedElements = [...elements].sort();
-  
-  // 데이터베이스에서 일치하는 분자 검색
-  for (const molecule of MOLECULES_DATABASE) {
-    const sortedComponents = [...molecule.components].sort();
-    
-    // 원소 구성이 정확히 일치하는지 확인
-    if (arraysEqual(sortedElements, sortedComponents)) {
-      return molecule;
-    }
-  }
-  
+  if (matchingMolecule) return createCardFromMolecule(matchingMolecule);
   return null;
 }
 
-/**
- * 두 배열이 완전히 동일한지 확인
- * @param {Array} arr1 - 첫 번째 배열
- * @param {Array} arr2 - 두 번째 배열
- * @returns {boolean} - 동일 여부
- */
-function arraysEqual(arr1, arr2) {
-  if (arr1.length !== arr2.length) return false;
+// 3개 이상의 원소로 분자 생성하는 함수 추가
+function createMoleculeFromMultipleElements(elements) {
+  if (!gameState || !gameState.moleculesData || !Array.isArray(gameState.elementsData) || elements.length < 2) return null;
+
+  const selCounts = {};
+  elements.forEach(el => {
+    const sym = el?.element?.symbol || gameState.elementsData.find(e => e.number === el?.element?.number)?.symbol;
+    if (!sym) return;
+    selCounts[sym] = (selCounts[sym] || 0) + 1;
+  });
+
+  const matchingMolecule = gameState.moleculesData.find(mol => {
+    const req = mol.elementCounts || {};
+    const selKeys = Object.keys(selCounts);
+    const reqKeys = Object.keys(req);
+    if (selKeys.length !== reqKeys.length) return false;
+    return reqKeys.every(sym => selCounts[sym] === req[sym]);
+  });
+
+  if (matchingMolecule) return createCardFromMolecule(matchingMolecule);
+  return null;
+}
+
+// 분자 카드 생성 함수
+function createCardFromMolecule(moleculeData) {
+  // 상위원소를 많이 포함하고 재료가 많을수록 극 버프
+  const elementNumbers = moleculeData.elements || [];
+  const counts = moleculeData.elementCounts || {};
+  const maxZ = Math.max(...elementNumbers);
+  const uniqueCount = elementNumbers.length;
+  const totalMaterials = Object.values(counts).reduce((a, b) => a + b, uniqueCount);
+
+  // 상위원소 단계 가중치(게임의 computeElementStats 단계 정의에 맞춤)
+  function getStage(z){ if(z<=10)return 0; if(z<=20)return 1; if(z<=40)return 2; if(z<=70)return 3; return 4; }
+  const avgStage = elementNumbers.length > 0 ? (elementNumbers.map(getStage).reduce((a,b)=>a+b,0) / elementNumbers.length) : 0;
+
+  // 기본 분자치: JSON 데이터 우선 사용, 구성 원소 기반 계산
+  let baseHp, baseAtk;
   
-  for (let i = 0; i < arr1.length; i++) {
-    if (arr1[i] !== arr2[i]) return false;
+  // 1순위: molecules.json의 baseStats 사용
+  if (moleculeData.baseStats?.hp !== undefined && moleculeData.baseStats?.atk !== undefined) {
+    baseHp = moleculeData.baseStats.hp;
+    baseAtk = moleculeData.baseStats.atk;
+  }
+  // 2순위: card_stats.json의 moleculeStats 사용
+  else if (gameState.cardStatsData?.moleculeStats) {
+    const moleculeStats = gameState.cardStatsData.moleculeStats;
+    let elementHp = 0, elementAtk = 0;
+    
+    elementNumbers.forEach(z => {
+      const el = getElementByNumber(z);
+      if (el) {
+        const stats = window.computeElementStats ? window.computeElementStats(el, el.rarity) : { hp: el.baseHp || 10, atk: el.baseAtk || 5 };
+        elementHp += stats.hp;
+        elementAtk += stats.atk;
+      }
+    });
+    
+    if (elementNumbers.length > 0) {
+      baseHp = Math.floor((elementHp / elementNumbers.length) * moleculeStats.baseHpMultiplier);
+      baseAtk = Math.floor((elementAtk / elementNumbers.length) * moleculeStats.baseAtkMultiplier);
+    } else {
+      baseHp = 20;
+      baseAtk = 10;
+    }
+  }
+  // 3순위: 구성 원소 기반 계산 (기존 방식)
+  else {
+    baseHp = 0;
+    baseAtk = 0;
+    elementNumbers.forEach(z => {
+      const el = getElementByNumber(z);
+      if (el) {
+        const stats = window.computeElementStats ? window.computeElementStats(el, el.rarity) : { hp: el.baseHp || 10, atk: el.baseAtk || 5 };
+        baseHp += stats.hp;
+        baseAtk += stats.atk;
+      }
+    });
+    if (elementNumbers.length > 0) {
+      baseHp = Math.floor(baseHp * 0.8); // 합산 후 기본 보정
+      baseAtk = Math.floor(baseAtk * 0.8);
+    } else {
+      baseHp = 20;
+      baseAtk = 10;
+    }
+  }
+
+  // 극 버프: 상위원소(단계)와 재료 수(총량)에 의해 증폭
+  // 단계 1당 1.7배를 기반으로, 평균 단계와 최댓값의 조합으로 가중
+  const stagePower = Math.pow(1.7, avgStage) * Math.pow(1.3, getStage(maxZ));
+  // 재료 총량이 많을수록, 그리고 서로 다른 재료 수가 많을수록 강해짐
+  const materialPower = Math.pow(1.15, totalMaterials) * Math.pow(1.1, uniqueCount - 1);
+
+  const synergyPower = 1 + (uniqueCount >= 2 ? (uniqueCount - 1) * 0.2 : 0);
+
+  const boostedHp = Math.floor(baseHp * stagePower * materialPower * synergyPower);
+  const boostedAtk = Math.floor(baseAtk * stagePower * materialPower * (synergyPower * 0.9 + 0.1));
+
+  const finalHp = Math.max(moleculeData.baseStats?.hp || 20, boostedHp);
+  const finalAtk = Math.max(moleculeData.baseStats?.atk || 10, boostedAtk);
+
+  return {
+    id: moleculeData.id,
+    name: moleculeData.name,
+    symbol: moleculeData.symbol,
+    formula: moleculeData.formula,
+    description: moleculeData.description,
+    rarity: moleculeData.rarity || 'common',
+    color: moleculeData.color || 'bg-gray-600',
+    elements: moleculeData.elements || [],
+    elementCounts: moleculeData.elementCounts || {},
+    baseStats: { 
+      hp: moleculeData.baseStats?.hp || 20, 
+      atk: moleculeData.baseStats?.atk || 10 
+    },
+    hp: finalHp,
+    atk: finalAtk,
+    maxHp: finalHp,
+    maxAtk: finalAtk,
+    originalMaxHp: finalHp, // 원본 최대 체력 저장 (코인 보상용)
+    effects: moleculeData.effects || [],
+    specialAbilities: convertMoleculeSpecialAbilities ? convertMoleculeSpecialAbilities(moleculeData) : (moleculeData.specialAbilities || []),
+    affinities: moleculeData.affinities || [],
+    category: moleculeData.category || 'molecule',
+    type: 'molecule',
+    owner: 'player',
+    lastDamageTurn: 0,
+    isSkull: false,
+    isSynthesis: false,
+    upgradeLevel: 0,
+    armor: 0,
+    shield: 0,
+    // ElementCard와 호환성을 위한 메서드들
+    getHealthRatio() {
+      return this.hp / this.maxHp;
+    },
+    isDead() {
+      return this.hp <= 0;
+    },
+    addEffect(effect) {
+      if (!this.effects) this.effects = [];
+      this.effects.push(effect);
+    },
+    hasEffect(effectName) {
+      return this.effects && this.effects.some(effect => effect.name === effectName);
+    },
+    getEffectValue(effectName, valueName) {
+      const effect = this.effects && this.effects.find(e => e.name === effectName);
+      if (effect && effect[valueName] !== undefined) {
+        return effect[valueName];
+      }
+      return 0;
+    },
+    processTurnEffects() {
+      if (!this.effects) return;
+      this.effects = this.effects.filter(effect => {
+        if (effect.duration !== undefined) {
+          effect.duration--;
+
+          if (effect.name === 'dot' && effect.damage) {
+            this.hp -= effect.damage;
+          }
+
+          if ((effect.name === 'heal' || effect.name === 'regeneration') && effect.healing) {
+            this.hp = Math.min(this.maxHp, this.hp + effect.healing);
+          }
+
+          return effect.duration > 0 || effect.permanent === true;
+        }
+        return true;
+      });
+    }
+  };
+}
+
+// 자동 분자 합성 확인 함수
+function checkAutoMoleculeCreation(laneIndex, side) {
+  const lane = battlefield.lanes[laneIndex];
+  const card = lane[side];
+
+  // 카드 유효성 및 소유자 확인
+  if (!card || card.isSkull || card.owner !== side) return false;
+
+  // 원소 카드인 경우에만 분자 생성 시도
+  if (card.type !== 'element' && !card.element) return false;
+
+  // 주변에 다른 원소가 있는지 확인
+  const adjacentLanes = [laneIndex - 1, laneIndex + 1].filter(i => i >= 0 && i < battlefield.lanes.length);
+  
+  // 인접한 원소들을 수집
+  const adjacentElements = [];
+  for (const adjLaneIndex of adjacentLanes) {
+    const adjLane = battlefield.lanes[adjLaneIndex];
+    const adjCard = adjLane[side];
+    
+    if (adjCard && adjCard.type === 'element' && adjCard.element && 
+        adjCard.element.number !== card.element.number) {
+      adjacentElements.push({card: adjCard, laneIndex: adjLaneIndex});
+    }
   }
   
-  return true;
-}
+  // 2개 원소로 분자 생성 시도 (이제 인벤토리에 생성)
+  for (const adjElement of adjacentElements) {
+    const newMolecule = createMoleculeFromElements(card, adjElement.card);
+    if (newMolecule) {
+      console.log(`[checkAutoMoleculeCreation] Auto-molecule creation (to inventory) triggered! Molecule: ${newMolecule.name}`);
 
-/**
- * 특정 희귀도의 분자 목록 가져오기
- * @param {string} rarity - 희귀도 ('common', 'uncommon', 'rare', 'epic', 'legendary')
- * @returns {Array} - 일치하는 분자 배열
- */
-function getMoleculesByRarity(rarity) {
-  if (!rarity) return [];
-  
-  return MOLECULES_DATABASE.filter(m => m.rarity === rarity);
-}
+      // 인벤토리에 적립
+      if (window.gameState?.fusionSystem) {
+        const molId = newMolecule.id || (newMolecule.formula?.toLowerCase?.() || newMolecule.symbol?.toLowerCase?.());
+        if (molId) {
+          const before = gameState.fusionSystem.materials[molId] || 0;
+          gameState.fusionSystem.materials[molId] = before + 1;
+          console.log(`[checkAutoMoleculeCreation-2elem] 인벤토리 적립: molId=${molId}, 이전=${before}, 이후=${gameState.fusionSystem.materials[molId]}`);
+          
+          // 분자 카드를 손패에 추가
+          if (typeof addCardToHand === 'function') {
+            addCardToHand(newMolecule, 'player');
+            console.log(`[checkAutoMoleculeCreation-2elem] 분자 카드 손패 추가: ${newMolecule.name}`);
+          }
+        } else {
+          console.warn('[checkAutoMoleculeCreation-2elem] 경고: molId 계산 실패');
+        }
+      }
 
-/**
- * 플레이어가 발견한 모든 분자 가져오기
- * @returns {Array} - 발견된 분자 배열
- */
-function getDiscoveredMolecules() {
-  const collection = JSON.parse(localStorage.getItem('moleculeCollection')) || [];
-  return collection;
-}
+      // 사용한 원소 카드 제거 (분자를 필드에 배치하지 않음)
+      battlefield.lanes[laneIndex][side] = null;
+      battlefield.lanes[adjElement.laneIndex][side] = null;
 
-/**
- * 분자 이름 표기를 형식화 (아래 첨자 처리 등)
- * @param {string} formula - 분자식
- * @returns {string} - 형식화된 분자식
- */
-function formatMolecularFormula(formula) {
-  if (!formula) return '';
-  
-  // 숫자를 아래 첨자로 변환
-  return formula.replace(/([0-9]+)/g, (match, number) => {
-    // 각 숫자에 맞는 유니코드 아래 첨자로 변환
-    const subscripts = {
-      '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
-      '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉'
-    };
-    
-    let result = '';
-    for (let i = 0; i < number.length; i++) {
-      result += subscripts[number[i]] || number[i];
+      try { console.log(`[checkAutoMoleculeCreation-2elem] materials 스냅샷:`, JSON.parse(JSON.stringify(gameState.fusionSystem.materials||{}))); } catch(e) {}
+      showMessage(`분자 생성: ${newMolecule.name}가 인벤토리에 추가되었습니다.`, 'success');
+      return true;
     }
+  }
+  
+  // 3개 이상의 원소로 분자 생성 시도 (물 H2O 등) - 인벤토리에 생성
+  if (adjacentElements.length >= 1) {
+    const allElements = [card, ...adjacentElements.map(ae => ae.card)];
+    const newMolecule = createMoleculeFromMultipleElements(allElements);
+    if (newMolecule) {
+      console.log(`[checkAutoMoleculeCreation] Multi-element molecule creation (to inventory) triggered! Molecule: ${newMolecule.name}`);
+
+      // 인벤토리에 적립
+      if (window.gameState?.fusionSystem) {
+        const molId = newMolecule.id || (newMolecule.formula?.toLowerCase?.() || newMolecule.symbol?.toLowerCase?.());
+        if (molId) {
+          const before = gameState.fusionSystem.materials[molId] || 0;
+          gameState.fusionSystem.materials[molId] = before + 1;
+          console.log(`[checkAutoMoleculeCreation-Nelem] 인벤토리 적립: molId=${molId}, 이전=${before}, 이후=${gameState.fusionSystem.materials[molId]}`);
+          
+          // 분자 카드를 손패에 추가
+          if (typeof addCardToHand === 'function') {
+            addCardToHand(newMolecule, 'player');
+            console.log(`[checkAutoMoleculeCreation-Nelem] 분자 카드 손패 추가: ${newMolecule.name}`);
+          }
+        } else {
+          console.warn('[checkAutoMoleculeCreation-Nelem] 경고: molId 계산 실패');
+        }
+      }
+
+      // 사용한 원소 카드들 제거 (필드에 분자 배치하지 않음)
+      battlefield.lanes[laneIndex][side] = null;
+      adjacentElements.forEach(ae => {
+        battlefield.lanes[ae.laneIndex][side] = null;
+      });
+
+      try { console.log(`[checkAutoMoleculeCreation-Nelem] materials 스냅샷:`, JSON.parse(JSON.stringify(gameState.fusionSystem.materials||{}))); } catch(e) {}
+      showMessage(`분자 생성: ${newMolecule.name}가 인벤토리에 추가되었습니다.`, 'success');
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Helper function to get element data by symbol (needs implementation)
+function getElementBySymbol(symbol) {
+    return gameState.elementsData.find(el => el.symbol === symbol);
+}
+
+// Assuming findPossibleMolecules is defined here:
+function findPossibleMolecules(card, laneIndex, side) {
+  if (!gameState || !gameState.moleculesData) return [];
+  
+  const possibleMolecules = [];
+  
+  // 현재 카드와 인접한 카드들을 확인
+  const adjacentLanes = [laneIndex - 1, laneIndex + 1].filter(i => i >= 0 && i < battlefield.lanes.length);
+  
+  for (const adjLaneIndex of adjacentLanes) {
+    const adjLane = battlefield.lanes[adjLaneIndex];
+    const adjCard = adjLane[side];
     
-    return result;
-  });
+    if (adjCard && adjCard.type === 'element' && adjCard.element && 
+        adjCard.element.number !== card.element.number) {
+      // 두 원소로 분자 생성 시도
+      const newMolecule = createMoleculeFromElements(card, adjCard);
+      if (newMolecule) {
+        possibleMolecules.push({
+          molecule: newMolecule,
+          laneIndex: adjLaneIndex,
+          description: `${card.element.symbol} + ${adjCard.element.symbol} = ${newMolecule.name}`
+        });
+      }
+    }
+  }
+  
+  return possibleMolecules;
 }
 
-/**
- * 분자 HTML 표현 생성
- * @param {Object} molecule - 분자 객체
- * @returns {string} - HTML 문자열
- */
-function getMoleculeHTML(molecule) {
-  if (!molecule) return '';
-  
-  return `
-    <div class="molecule-card ${molecule.color || 'bg-purple-600'} p-3 rounded-lg shadow-lg">
-      <h3 class="font-bold text-center">${molecule.formula}</h3>
-      <p class="text-sm text-center mb-2">${molecule.name}</p>
-      <div class="flex justify-between text-sm">
-        <span>⚔️ ${molecule.baseAtk}</span>
-        <span>❤️ ${molecule.baseHp}</span>
-      </div>
-      <div class="text-xs mt-2 text-center text-purple-200">
-        ${molecule.effect ? getEffectDescription(molecule.effect) : ''}
-      </div>
-    </div>
-  `;
+// New function to synthesize two card objects
+function synthesizeCards(card1, card2) {
+    if (!card1 || !card2 || card1.isSkull || card2.isSkull) {
+        console.error("[synthesizeCards] Invalid input cards.", card1, card2);
+        return null;
+    }
+
+    console.log(`[synthesizeCards] Attempting to synthesize: ${card1.name} and ${card2.name}`);
+
+    // 1. Combine Components
+    const components1 = card1.isSynthesis ? card1.components : [card1.element.number];
+    const components2 = card2.isSynthesis ? card2.components : [card2.element.number];
+    const combinedComponents = [...components1, ...components2].sort((a, b) => a - b);
+
+    console.log(`[synthesizeCards] Combined components: ${JSON.stringify(combinedComponents)}`);
+
+    // 2. Check for Molecule Formation
+    let matchingMolecule = null;
+    if (gameState.moleculesData) {
+        matchingMolecule = gameState.moleculesData.find(mol => {
+            if (mol.elements.length !== combinedComponents.length) return false;
+            const molElements = [...mol.elements].sort((a, b) => a - b);
+            return molElements.every((elem, index) => elem === combinedComponents[index]);
+        });
+    }
+
+    console.log(`[synthesizeCards] molecule search result:`, matchingMolecule);
+
+    // 3. Create New Card Data with enhanced stats based on element combination
+    const maxElementNumber = Math.max(...combinedComponents);
+    const minElementNumber = Math.min(...combinedComponents);
+    
+    // 원소 조합에 따른 가파른 증가 공식
+    const elementPower = Math.pow(maxElementNumber, 1.4) + Math.pow(minElementNumber, 1.1);
+    const synergyBonus = combinedComponents.length > 1 ? Math.pow(combinedComponents.length, 1.2) : 1;
+    
+    // 기본 합산 능력치
+    const baseHp = (card1.maxHp || 0) + (card2.maxHp || 0);
+    const baseAtk = (card1.atk || 0) + (card2.atk || 0);
+    
+    // 원소 조합 보너스 적용
+    const enhancedHp = Math.floor(baseHp * (1 + elementPower * 0.3 * synergyBonus));
+    const enhancedAtk = Math.floor(baseAtk * (1 + elementPower * 0.25 * synergyBonus));
+    
+    let newCardData = {
+        components: combinedComponents,
+        isSynthesis: true,
+        // Enhanced Stats based on element combination
+        maxHp: enhancedHp,
+        hp: enhancedHp, // Use enhanced HP for current HP too
+        atk: enhancedAtk,
+        upgradeLevel: 0, // Start upgrades from 0 for new synthesis
+        // Determine Rarity (e.g., highest rarity of components)
+        rarity: 'common', // Placeholder, calculate below
+        // Other properties will be filled based on reaction or defaults
+    };
+
+    const componentElements = combinedComponents.map(num => getElementByNumber(num)).filter(el => el);
+    if (componentElements.length > 0) {
+        newCardData.rarity = getHighestRarity(componentElements.map(el => el.rarity || 'common'));
+    }
+
+    if (matchingMolecule) {
+        // --- Molecule Formed ---
+        console.log(`[synthesizeCards] SUCCESS: ${matchingMolecule.name} formed.`);                                                                             
+        newCardData.name = matchingMolecule.name;
+        newCardData.moleculeId = matchingMolecule.id;
+        newCardData.effect = matchingMolecule.effects;
+        newCardData.specialAbilities = matchingMolecule.specialAbilities;
+        newCardData.affinities = matchingMolecule.affinities;
+        newCardData.category = matchingMolecule.category;
+        newCardData.rarity = matchingMolecule.rarity;
+    } else {
+        // 일반 합성물 생성 금지: 매칭되는 분자가 없으면 합성 실패 처리
+        console.log('[synthesizeCards] FAILED: No specific molecule formed. Generic synthesis is disabled.');
+        return null;
+    }
+
+    // 4. Create a new Card instance
+    if (matchingMolecule) {
+        // 분자 카드 생성
+        const newSynthesizedCard = createCardFromMolecule(matchingMolecule);
+        newSynthesizedCard.components = combinedComponents;
+        newSynthesizedCard.isSynthesis = true;
+        newSynthesizedCard.owner = 'player';
+        newSynthesizedCard.id = generateUniqueId();
+        
+        console.log("[synthesizeCards] Created new molecule card:", newSynthesizedCard);
+        return newSynthesizedCard;
+    }
 }
 
-/**
- * 효과 설명 생성
- * @param {Object} effect - 효과 객체
- * @returns {string} - 효과 설명
- */
-function getEffectDescription(effect) {
-  if (!effect) return '';
-  
-  const effects = {
-    'heal': `회복: 턴마다 ${effect.value}의 체력을 회복합니다.`,
-    'damage': `피해: 공격 시 ${effect.value}의 추가 피해를 입힙니다.`,
-    'poison': `중독: ${effect.duration || 2}턴 동안 매 턴 ${effect.value}의 피해를 입힙니다.`,
-    'burn': `화상: ${effect.duration || 2}턴 동안 매 턴 ${effect.value}의 피해를 입힙니다.`,
-    'freeze': `빙결: ${effect.duration || 1}턴 동안 대상을 얼립니다.`,
-    'defense': `방어: ${effect.value}의 방어력을 추가합니다.`,
-    'boost': `강화: 아군 카드의 공격력을 ${effect.value} 증가시킵니다.`,
-    'corrode': `부식: ${effect.value}의 피해를 입히고 방어력을 무시합니다.`
-  };
-  
-  return effects[effect.type] || '특수 효과를 발동합니다.';
+// Helper function to get highest rarity (ensure it's defined or imported)
+function getHighestRarity(rarities) {
+    const order = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+    let highest = 'common';
+    let highestIndex = -1;
+    for (const rarity of rarities) {
+        const index = order.indexOf(rarity);
+        if (index > highestIndex) {
+            highestIndex = index;
+            highest = rarity;
+        }
+    }
+    return highest;
 }
 
-// 전역으로 함수 노출
-window.getMoleculeInfo = getMoleculeInfo;
-window.findMoleculeByElements = findMoleculeByElements;
-window.getMoleculesByRarity = getMoleculesByRarity;
-window.getDiscoveredMolecules = getDiscoveredMolecules;
-window.formatMolecularFormula = formatMolecularFormula;
-window.getMoleculeHTML = getMoleculeHTML;
+// Helper function for unique IDs (ensure it's defined or imported)
+function generateUniqueId() {
+    return Math.random().toString(36).substring(2, 9);
+}
+
+// 분자 데이터 로딩 상태 확인 함수
+function checkMoleculesDataLoaded() {
+  console.log('[checkMoleculesDataLoaded] Checking molecules data...');
+  console.log('[checkMoleculesDataLoaded] gameState exists:', !!gameState);
+  console.log('[checkMoleculesDataLoaded] moleculesData exists:', !!gameState?.moleculesData);
+  console.log('[checkMoleculesDataLoaded] moleculesData length:', gameState?.moleculesData?.length || 0);
+  
+  if (gameState?.moleculesData?.length > 0) {
+    console.log('[checkMoleculesDataLoaded] Sample molecule:', gameState.moleculesData[0]);
+  }
+  
+  return !!(gameState && gameState.moleculesData && gameState.moleculesData.length > 0);
+}
+
+// Expose functions globally
+window.findPossibleMolecules = findPossibleMolecules;
+window.checkAutoMoleculeCreation = typeof checkAutoMoleculeCreation !== 'undefined' ? checkAutoMoleculeCreation : undefined;
+window.synthesizeCards = synthesizeCards;
+window.createMoleculeFromElements = createMoleculeFromElements;
+window.createMoleculeFromMultipleElements = createMoleculeFromMultipleElements;
+window.createCardFromMolecule = createCardFromMolecule;
+window.checkMoleculesDataLoaded = checkMoleculesDataLoaded;

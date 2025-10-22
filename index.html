@@ -1,156 +1,477 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="src/assets/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha384-k6RqeWeci5ZR/Lv4MR0sA0FfDOM8d7x2z5e5c5e5e5e5e5e5e5e5e5e5e5e5e5e" crossorigin="anonymous">
   <title>원소 대전</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
   <style>
-    /* 커스텀 스타일 */
-    .perspective-800 {
-      perspective: 800px;
+    /* 뽑기 애니메이션을 위한 CSS */
+    .rainbow-bg {
+      background: linear-gradient(45deg, #10b981, #3b82f6, #8b5cf6, #facc15);
+      background-size: 400% 400%;
+      animation: rainbow-bg 3s ease infinite;
     }
-    .transform-style-preserve-3d {
-      transform-style: preserve-3d;
+    
+    @keyframes rainbow-bg {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
     }
-    .lane-slot {
-      transition: all 0.3s ease;
+    
+    .shine-effect {
       position: relative;
+      overflow: hidden;
     }
-    .lane-slot.drop-active {
-      background-color: rgba(56, 189, 248, 0.3);
-      border: 2px dashed rgb(56, 189, 248);
+    
+    .shine-effect::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+      animation: shine 2s ease-in-out;
+    }
+    
+    @keyframes shine {
+      0% { left: -100%; }
+      100% { left: 100%; }
+    }
+    
+    .shake {
+      animation: shake 0.5s ease-in-out;
+    }
+    
+    /* 카드 애니메이션을 위한 CSS */
+    .card-entrance {
+      animation: cardEntrance 0.6s ease-out;
+    }
+    
+    @keyframes cardEntrance {
+      0% {
+        opacity: 0;
+        transform: scale(0.5) rotateY(90deg);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.2) rotateY(0deg);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) rotateY(0deg);
+      }
+    }
+    
+    .card-attack {
+      animation: cardAttack 0.4s ease-out;
+    }
+    
+    @keyframes cardAttack {
+      0% {
+        transform: scale(1);
+      }
+      30% {
+        transform: scale(1.3) translateY(-15px) rotateZ(8deg);
+      }
+      60% {
+        transform: scale(1.2) translateY(-8px) rotateZ(5deg);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+    
+    .card-destroy {
+      animation: cardDestroy 0.5s ease-in;
+    }
+    
+    @keyframes cardDestroy {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.2) rotateZ(180deg);
+        opacity: 0.5;
+      }
+      100% {
+        transform: scale(0) rotateZ(360deg);
+        opacity: 0;
+      }
+    }
+    
+    .base-damage {
+      animation: baseDamage 0.5s ease-in-out;
+    }
+    
+    @keyframes baseDamage {
+      0%, 100% { 
+        transform: scale(1);
+        filter: brightness(1);
+      }
+      25% { 
+        transform: scale(1.05);
+        filter: brightness(1.2);
+      }
+      50% { 
+        transform: scale(0.95);
+        filter: brightness(0.8);
+      }
+      75% { 
+        transform: scale(1.02);
+        filter: brightness(1.1);
+      }
+    }
+    
+    .card-heal {
+      animation: cardHeal 1.5s ease-in-out;
+    }
+    
+    @keyframes cardHeal {
+      0%, 100% { 
+        transform: scale(1);
+        filter: brightness(1);
+      }
+      25% { 
+        transform: scale(1.05);
+        filter: brightness(1.3) hue-rotate(120deg);
+      }
+      50% { 
+        transform: scale(1.1);
+        filter: brightness(1.5) hue-rotate(120deg);
+      }
+      75% { 
+        transform: scale(1.05);
+        filter: brightness(1.2) hue-rotate(120deg);
+      }
+    }
+    
+    /* 특수능력 애니메이션을 위한 CSS */
+    .hardness-effect {
+      animation: hardness-pulse 1s ease-in-out;
+    }
+    
+    @keyframes hardness-pulse {
+      0%, 100% { 
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(107, 114, 128, 0.4);
+      }
+      50% { 
+        transform: scale(1.05);
+        box-shadow: 0 0 20px 5px rgba(107, 114, 128, 0.6);
+      }
+    }
+    
+    .base-damage {
+      animation: damage-shake 0.6s ease-in-out;
+    }
+    
+    @keyframes damage-shake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+      20%, 40%, 60%, 80% { transform: translateX(2px); }
+    }
+    
+    .card-heal {
+      animation: heal-glow 1.5s ease-in-out;
+    }
+    
+    @keyframes heal-glow {
+      0%, 100% { 
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+      }
+      50% { 
+        box-shadow: 0 0 20px 5px rgba(16, 185, 129, 0.8);
+      }
+    }
+    
+    /* 특수능력 발동 시 카드 애니메이션 */
+    .special-ability-active {
+      animation: special-ability-pulse 1s ease-in-out;
+    }
+    
+    @keyframes special-ability-pulse {
+      0%, 100% { 
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.4);
+      }
+      25% { 
+        transform: scale(1.3);
+        box-shadow: 0 0 30px 10px rgba(250, 204, 21, 0.8);
+      }
+      50% { 
+        transform: scale(1.1);
+        box-shadow: 0 0 40px 15px rgba(250, 204, 21, 1);
+      }
+      75% { 
+        transform: scale(1.2);
+        box-shadow: 0 0 20px 8px rgba(250, 204, 21, 0.6);
+      }
+    }
+    
+    /* 파티클 효과를 위한 기본 스타일 */
+    .particle {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      will-change: transform, opacity;
+    }
+    
+    /* 특수능력 효과 오버레이 */
+    .ability-effect-overlay {
+      position: absolute;
+      inset: 0;
       border-radius: 0.5rem;
+      pointer-events: none;
+      z-index: 10;
     }
-    /* 기타 필요한 스타일 추가 */
+    
+    /* 애니메이션 진행 중 플래그 */
+    .animation-in-progress {
+      pointer-events: none;
+    }
+    
+    /* 모바일 최적화 */
+    @media (max-width: 768px) {
+      .particle {
+        display: none; /* 모바일에서는 파티클 효과 비활성화 */
+      }
+      
+      .special-ability-active {
+        animation-duration: 0.5s; /* 모바일에서는 애니메이션 시간 단축 */
+      }
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+    
+    .card-heal {
+      animation: cardHeal 1.5s ease-in-out;
+    }
+    
+    @keyframes cardHeal {
+      0% { box-shadow: 0 0 0 rgba(16, 185, 129, 0.4); }
+      50% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.8); }
+      100% { box-shadow: 0 0 0 rgba(16, 185, 129, 0.4); }
+    }
+    
+    .base-damage {
+      animation: baseDamage 0.6s ease-in-out;
+    }
+    
+    @keyframes baseDamage {
+      0%, 100% { transform: scale(1); }
+      25% { transform: scale(1.05); }
+      50% { transform: scale(0.95); }
+      75% { transform: scale(1.02); }
+    }
+    
+    /* 카드 등급별 스타일 */
+    .rank-common { color: #9ca3af; }
+    .rank-uncommon { color: #10b981; }
+    .rank-rare { color: #3b82f6; }
+    .rank-epic { color: #8b5cf6; }
+    .rank-legendary { color: #facc15; }
+    
+    /* 특수 능력 배지 */
+    .special-ability {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #f59e0b;
+      color: white;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 2px 4px;
+      border-radius: 50%;
+      min-width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    
+    /* 원소 랭크 표시 */
+    .element-rank {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      font-size: 12px;
+      font-weight: bold;
+      z-index: 10;
+    }
+    
+    /* 드래그 중인 카드 스타일 */
+    .dragging {
+      opacity: 0.5;
+      transform: rotate(5deg);
+      z-index: 1000;
+    }
+    
+    /* 인벤토리 진입 애니메이션 */
+    .inventory-entry {
+      animation: inventoryEntry 1s ease-out;
+    }
+    
+    @keyframes inventoryEntry {
+      0% {
+        transform: scale(1.5) rotate(0deg);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.2) rotate(180deg);
+        opacity: 0.8;
+      }
+      100% {
+        transform: scale(1) rotate(360deg);
+        opacity: 1;
+      }
+    }
   </style>
 </head>
-<body class="bg-gray-900 font-sans text-white">
-  <div class="max-w-6xl mx-auto p-4 perspective-800">
-    <!-- 헤더 -->
+<body class="bg-gradient-to-b from-gray-800 to-gray-900 font-sans text-white">
+
+  <div class="max-w-6xl mx-auto p-4 perspective-1200 relative z-10">
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-3xl font-bold text-yellow-400">원소 대전</h1>
       <div class="flex items-center">
-        <button id="tutorial-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white py-1 px-4 rounded-md shadow transition-colors mr-3">
+        <button id="molecule-guide-btn" class="bg-purple-600 hover:bg-purple-700 text-white py-1 px-4 rounded-md shadow transition-colors mr-3">                      
+          분자 도감
+        </button>
+        <button id="tutorial-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white py-1 px-4 rounded-md shadow transition-colors mr-3">                      
           튜토리얼
         </button>
-        <div class="coin-display flex items-center bg-yellow-600 px-4 py-1 rounded-full">
+        <button id="online-match-btn" class="bg-green-600 hover:bg-green-700 text-white py-1 px-4 rounded-md shadow transition-colors mr-3">                      
+          🌐 온라인 매칭
+        </button>
+        <div class="coin-display flex items-center bg-yellow-600 px-4 py-1 rounded-full mr-2">                                                                       
           <span class="text-xl mr-1">💰</span>
           <span id="coin-amount" class="font-bold">0</span>
+        </div>
+        <div class="energy-display flex items-center bg-blue-600 px-4 py-1 rounded-full mr-2">
+          <span class="text-xl mr-1">⚡</span>
+          <span id="energy-amount" class="font-bold">0</span>
+        </div>
+        <div class="heat-display flex items-center bg-red-600 px-4 py-1 rounded-full mr-2">
+          <span class="text-xl mr-1">🔥</span>
+          <span id="heat-amount" class="font-bold">0</span>
+        </div>
+        <div class="ml-3 difficulty-container">
+          <label for="difficulty-select" class="text-sm text-gray-200 mr-2">난이도</label>
+          <select id="difficulty-select" class="bg-gray-700 text-white text-sm px-2 py-1 rounded-md border border-gray-600">
+            <option value="easy">쉬움</option>
+            <option value="normal" selected>보통</option>
+            <option value="hard">어려움</option>
+          </select>
         </div>
       </div>
     </div>
     
-    <!-- 게임 정보 -->
     <div class="game-info mb-4 flex justify-between">
       <div class="player-info text-left">
         <h2 class="text-xl font-bold text-blue-400">플레이어</h2>
         <div>점수: <span id="player-score" class="font-bold">0</span></div>
       </div>
+      
       <div id="result-message" class="text-center text-xl font-bold h-12 text-green-400">
         원소를 배치하세요!
       </div>
+      
       <div class="computer-info text-right">
         <h2 class="text-xl font-bold text-red-400">컴퓨터</h2>
         <div>점수: <span id="computer-score" class="font-bold">0</span></div>
-        <!-- 컴퓨터 코인 표시 추가 -->
-        <div class="mt-1">
-            <span class="text-sm text-red-300">코인: 💰</span>
-            <span id="computer-coin-amount" class="font-bold text-red-300">0</span>
-        </div>
       </div>
     </div>
 
-    <!-- 2.5D 테이블 형태의 전투 필드 -->
-    <div class="battlefield-container relative mb-8 h-[500px] transform-style-preserve-3d">
-      <!-- 컴퓨터 과학 기지 -->
-      <div id="computer-base" class="absolute top-2 left-1/2 transform -translate-x-1/2 z-10">
-        <div class="bg-red-900 rounded-lg p-2 shadow-lg w-64 transform rotateX(30deg) scale-y-75">
-          <h3 class="text-center text-red-200 font-bold mb-1">적 과학 기지</h3>
-          <div class="bg-red-800 rounded-lg p-1">
+    <div class="battlefield-container relative mb-8 h-[550px] transform-style-preserve-3d filter drop-shadow(0 10px 15px rgba(0,0,0,0.4))">
+      <div id="computer-base" class="absolute top-4 right-4 z-10">
+        <div class="bg-red-900/90 backdrop-blur-sm rounded-lg p-2 shadow-lg w-32">
+          <h3 class="text-center text-red-200 font-bold text-xs mb-1">적 기지</h3>
+          <div class="bg-red-800/80 rounded p-1">
             <div class="flex justify-between items-center mb-1">
-              <span class="text-xs text-red-200">체력:</span>
-              <span id="computer-base-hp" class="font-bold text-red-200">100</span>
+              <span class="text-xs text-red-200">HP:</span>
+              <span id="computer-base-hp" class="font-bold text-red-200 text-xs">100</span>
             </div>
-            <div class="w-full bg-red-950 rounded-full h-2">
-              <div id="computer-base-hp-bar" class="bg-red-500 h-2 rounded-full" style="width: 100%"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 전투 필드 영역 -->
-      <div id="battlefield" class="bg-gradient-to-b from-gray-700 to-gray-900 rounded-xl p-6 transform rotateX(30deg) shadow-2xl mt-6">
-        <div class="grid grid-cols-5 gap-4">
-          <!-- 5개의 라인 -->
-          <div id="lane-0" class="battlefield-lane relative h-[280px] border-l-2 border-r-2 border-yellow-800 px-1">
-            <div class="lane-slots flex flex-col justify-between h-full">
-              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
-              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
-            </div>
-          </div>
-          <div id="lane-1" class="battlefield-lane relative h-[280px] border-l-2 border-r-2 border-yellow-800 px-1">
-            <div class="lane-slots flex flex-col justify-between h-full">
-              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
-              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
-            </div>
-          </div>
-          <div id="lane-2" class="battlefield-lane relative h-[280px] border-l-2 border-r-2 border-yellow-800 px-1">
-            <div class="lane-slots flex flex-col justify-between h-full">
-              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
-              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
-            </div>
-          </div>
-          <div id="lane-3" class="battlefield-lane relative h-[280px] border-l-2 border-r-2 border-yellow-800 px-1">
-            <div class="lane-slots flex flex-col justify-between h-full">
-              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
-              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
-            </div>
-          </div>
-          <div id="lane-4" class="battlefield-lane relative h-[280px] border-l-2 border-r-2 border-yellow-800 px-1">
-            <div class="lane-slots flex flex-col justify-between h-full">
-              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
-              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
+            <div class="w-full bg-red-950 rounded-full h-1.5">
+              <div id="computer-base-hp-bar" class="bg-red-500 h-1.5 rounded-full" style="width: 100%"></div>
             </div>
           </div>
         </div>
       </div>
       
-      <!-- 플레이어 과학 기지 -->
-      <div id="player-base" class="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-10">
-        <div class="bg-blue-900 rounded-lg p-2 shadow-lg w-64 transform rotateX(30deg) scale-y-75">
-          <h3 class="text-center text-blue-200 font-bold mb-1">내 과학 기지</h3>
-          <div class="bg-blue-800 rounded-lg p-1">
-            <div class="flex justify-between items-center mb-1">
-              <span class="text-xs text-blue-200">체력:</span>
-              <span id="player-base-hp" class="font-bold text-blue-200">100</span>
+      <div id="battlefield" class="bg-gradient-to-b from-gray-700 to-gray-800 rounded-xl p-6 transform rotateX(75deg) shadow-xl mt-8 border-2 border-gray-600/50">
+        <div class="grid grid-cols-5 gap-4">
+          <div id="lane-0" class="battlefield-lane relative h-[300px] border-l border-r border-yellow-900/30 px-1">
+            <div class="lane-slots flex flex-col justify-between h-full">
+              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
+              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
             </div>
-            <div class="w-full bg-blue-950 rounded-full h-2">
-              <div id="player-base-hp-bar" class="bg-blue-500 h-2 rounded-full" style="width: 100%"></div>
+          </div>
+          <div id="lane-1" class="battlefield-lane relative h-[300px] border-l border-r border-yellow-900/30 px-1">
+            <div class="lane-slots flex flex-col justify-between h-full">
+              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
+              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
+            </div>
+          </div>
+          <div id="lane-2" class="battlefield-lane relative h-[300px] border-l border-r border-yellow-900/30 px-1">
+            <div class="lane-slots flex flex-col justify-between h-full">
+              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
+              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
+            </div>
+          </div>
+          <div id="lane-3" class="battlefield-lane relative h-[300px] border-l border-r border-yellow-900/30 px-1">
+            <div class="lane-slots flex flex-col justify-between h-full">
+              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
+              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
+            </div>
+          </div>
+          <div id="lane-4" class="battlefield-lane relative h-[300px] border-l border-r border-yellow-900/30 px-1">
+            <div class="lane-slots flex flex-col justify-between h-full">
+              <div class="computer-slot lane-slot h-32 w-24 mx-auto"></div>
+              <div class="player-slot lane-slot h-32 w-24 mx-auto"></div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-    
-    <!-- 플레이어 손패 영역 -->
+
+      <div id="player-base" class="absolute bottom-4 left-4 z-10">
+        <div class="bg-blue-900/90 backdrop-blur-sm rounded-lg p-2 shadow-lg w-32">
+          <h3 class="text-center text-blue-200 font-bold text-xs mb-1">내 기지</h3>
+          <div class="bg-blue-800/80 rounded p-1">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-xs text-blue-200">HP:</span>
+              <span id="player-base-hp" class="font-bold text-blue-200 text-xs">100</span>
+            </div>
+            <div class="w-full bg-blue-950 rounded-full h-1.5">
+              <div id="player-base-hp-bar" class="bg-blue-500 h-1.5 rounded-full" style="width: 100%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>  
+
     <div class="player-area">
       <h2 class="text-xl font-bold text-blue-400 mb-3">내 손패</h2>
-      <div id="player-hand" class="flex flex-wrap justify-center gap-4 min-h-[160px] mb-6 p-4 rounded-lg bg-gray-800 shadow-inner">
-        <!-- 카드들이 여기에 추가됨 -->
-      </div>
-      <!-- 뽑기 버튼 영역 -->
+      
+      <div id="player-hand" class="flex flex-wrap justify-center gap-4 min-h-[160px] mb-6 p-4 rounded-lg bg-gray-800 shadow-inner transition-all duration-300"></div>
+      
       <div class="controls flex justify-center space-x-3 mb-4 flex-wrap">
-        <button id="draw-basic-btn" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md shadow transition-colors m-1">
-          일반 뽑기 (💰 2)
+        <button id="card-pack-btn" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-md shadow transition-colors m-1">
+          📦 카드 팩
         </button>
-        <button id="draw-premium-btn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md shadow transition-colors m-1">
-          고급 뽑기 (💰 5)
-        </button>
-        <button id="draw-legend-btn" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-md shadow transition-colors m-1">
-          레전드 뽑기 (💰 10)
+        <button id="star-management-btn" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-md shadow transition-colors m-1">
+          🌟 우주
         </button>
         <button id="end-turn-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-md shadow transition-colors m-1">
           턴 종료
@@ -160,47 +481,22 @@
         </button>
       </div>
     </div>
-    
-    <!-- 카드 강화 모달 -->
-    <div id="card-upgrade-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
-      <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full">
-        <h2 class="text-2xl font-bold text-yellow-400 mb-4">카드 강화</h2>
-        <div id="upgrade-card-display" class="flex justify-center mb-4"></div>
-        <div class="mb-4">
-          <h3 class="text-lg font-bold text-blue-300 mb-2">강화 효과</h3>
-          <div class="bg-gray-700 p-3 rounded-lg">
-            <p id="upgrade-effect-description" class="text-white"></p>
-          </div>
-        </div>
-        <div class="flex justify-between mt-2">
-          <div>비용: <span id="upgrade-cost" class="font-bold text-yellow-400"></span> 코인</div>
-          <div>현재 레벨: <span id="current-level" class="font-bold text-green-400"></span></div>
-        </div>
-        <div class="flex space-x-4 mt-2">
-          <button id="confirm-upgrade-btn" class="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
-            강화하기
-          </button>
-          <button id="cancel-upgrade-btn" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
-            취소
-          </button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 튜토리얼 모달 -->
+
     <div id="tutorial-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
       <div class="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
         <h2 class="text-2xl font-bold text-yellow-400 mb-4">원소 대전 튜토리얼</h2>
+        
         <div class="tutorial-steps">
           <div class="tutorial-step active" data-step="1">
             <h3 class="text-xl text-blue-300 mb-3">1. 게임 소개</h3>
-            <p class="mb-2">원소 대전은 주기율표의 원소들을 활용한 카드 배틀 게임이야.</p>
-            <p class="mb-2">각 원소는 고유한 능력치와 특성을 가지며, 조합해 분자를 만들 수 있어.</p>
+            <p class="mb-2">원소 대전은 주기율표의 원소들을 활용한 카드 배틀 게임입니다.</p>
+            <p class="mb-2">각 원소는 고유한 능력치와 특성을 가지며, 원소들을 조합해 분자를 만들 수 있습니다.</p>
             <img src="src/images/tutorial/game-overview.png" alt="게임 화면" class="my-3 rounded-lg w-full">
           </div>
+          
           <div class="tutorial-step hidden" data-step="2">
             <h3 class="text-xl text-blue-300 mb-3">2. 카드 뽑기</h3>
-            <p class="mb-2">게임 시작 시 기본 카드를 주고, 추가 카드는 코인을 사용해 뽑을 수 있어.</p>
+            <p class="mb-2">게임 시작시 기본 카드를 받게 됩니다. 추가 카드는 코인을 사용해 뽑을 수 있습니다:</p>
             <ul class="list-disc pl-5 mb-3">
               <li>일반 뽑기: 2 코인 (일반 카드 위주)</li>
               <li>고급 뽑기: 5 코인 (희귀 카드 확률 증가)</li>
@@ -208,27 +504,31 @@
             </ul>
             <img src="src/images/tutorial/card-drawing.png" alt="카드 뽑기" class="my-3 rounded-lg w-full">
           </div>
+          
           <div class="tutorial-step hidden" data-step="3">
             <h3 class="text-xl text-blue-300 mb-3">3. 카드 배치와 전투</h3>
-            <p class="mb-2">카드를 5개의 라인 중 하나에 드래그해서 배치해.</p>
-            <p class="mb-2">턴이 끝나면 카드들이 서로 공격하고, 앞에 적이 없으면 상대 기지를 직접 공격해.</p>
-            <p class="mb-2">같은 자리에 여러 카드가 있으면 합쳐져서, 조합이 맞으면 자동으로 분자가 생성돼.</p>
+            <p class="mb-2">카드를 5개의 라인 중 하나에 드래그하여 배치합니다.</p>
+            <p class="mb-2">턴이 끝날 때마다 카드들은 서로 공격하며, 앞에 적이 없으면 상대 기지를 직접 공격합니다.</p>
+            <p class="mb-2">같은 자리에 여러 장의 카드를 올리면 합쳐져서 표시되며, 적절한 조합이면 자동으로 분자가 생성됩니다.</p>
             <img src="src/images/tutorial/battle.png" alt="전투 화면" class="my-3 rounded-lg w-full">
           </div>
+          
           <div class="tutorial-step hidden" data-step="4">
             <h3 class="text-xl text-blue-300 mb-3">4. 분자 합성</h3>
-            <p class="mb-2">같은 자리에 특정 원소들이 모이면 자동으로 분자가 합성돼.</p>
-            <p class="mb-2">분자는 일반 원소보다 강력하고 특수 효과가 있어.</p>
+            <p class="mb-2">같은 자리에 특정 원소들이 모이면 자동으로 분자가 합성됩니다.</p>
+            <p class="mb-2">분자는 일반 원소보다 강력하며 특수 효과를 가집니다.</p>
             <p class="mb-2">예: H + H + O → H₂O (물)</p>
             <img src="src/images/tutorial/molecule.png" alt="분자 합성" class="my-3 rounded-lg w-full">
           </div>
+          
           <div class="tutorial-step hidden" data-step="5">
-            <h3 class="text-xl text-blue-300 mb-3">5. 카드 강화</h3>
-            <p class="mb-2">전장에 배치된 카드를 클릭하면 코인을 사용해 강화할 수 있어.</p>
-            <p class="mb-2">강화할수록 카드의 공격력과 체력이 증가해.</p>
-            <img src="src/images/tutorial/upgrade.png" alt="카드 강화" class="my-3 rounded-lg w-full">
+            <h3 class="text-xl text-blue-300 mb-3">5. 게임 승리</h3>
+            <p class="mb-2">상대방의 기지 체력을 0으로 만들면 승리합니다.</p>
+            <p class="mb-2">전략적으로 카드를 배치하고 분자를 합성하여 강력한 조합을 만들어보세요!</p>
+            <img src="src/images/tutorial/victory.png" alt="게임 승리" class="my-3 rounded-lg w-full">
           </div>
         </div>
+        
         <div class="flex justify-between mt-6">
           <button id="prev-tutorial" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-6 rounded">이전</button>
           <div>
@@ -236,13 +536,12 @@
           </div>
           <button id="next-tutorial" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded">다음</button>
         </div>
+        
         <div class="flex justify-center mt-4">
           <button id="skip-tutorial" class="text-gray-400 hover:text-white">튜토리얼 건너뛰기</button>
         </div>
       </div>
     </div>
-    
-    <!-- 카드 뽑기 애니메이션 영역 -->
     <div id="draw-animation-container" class="fixed inset-0 flex items-center justify-center z-50 pointer-events-none hidden">
       <div id="draw-animation" class="relative">
         <div class="card-pack bg-gradient-to-br from-purple-600 to-blue-800 w-48 h-64 rounded-lg shadow-2xl flex items-center justify-center">
@@ -251,8 +550,6 @@
         <div id="drawn-card" class="absolute top-0 left-0 w-48 h-64 opacity-0"></div>
       </div>
     </div>
-    
-    <!-- 승리/패배 모달 -->
     <div id="game-result-modal" class="fixed inset-0 bg-black bg-opacity-90 hidden flex items-center justify-center z-50">
       <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full text-center">
         <h2 id="result-title" class="text-4xl font-bold mb-4"></h2>
@@ -262,21 +559,17 @@
         </button>
       </div>
     </div>
-    
-    <!-- 분자 도감 모달 -->
+
     <div id="molecule-collection-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
       <div class="bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
         <h2 class="text-2xl font-bold text-purple-300 mb-4">분자 도감</h2>
-        <div id="molecule-collection-content" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          <!-- 분자들이 여기에 추가됨 -->
-        </div>
+        <div id="molecule-collection-content" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
         <button id="close-collection-modal" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
           닫기
         </button>
       </div>
     </div>
-    
-    <!-- 카드 상세 정보 모달 -->
+
     <div id="card-detail-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
       <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full">
         <div id="modal-content"></div>
@@ -285,39 +578,1539 @@
         </button>
       </div>
     </div>
+
+    <div id="molecule-viewer-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">                                  
+        <div class="bg-gray-800 rounded-lg p-6 max-w-lg w-full text-center">    
+            <h2 class="text-2xl font-bold text-cyan-400 mb-4">분자 정보</h2>    
+            <div id="molecule-viewer-content">
+                <p>분자 정보를 로드 중...</p>
+            </div>
+            <div class="flex justify-between mt-4">
+                 <button id="prev-molecule" class="bg-gray-700 p-2 rounded-full">&lt;</button>                                                                  
+                 <button id="next-molecule" class="bg-gray-700 p-2 rounded-full">&gt;</button>                                                                  
+            </div>
+            <button id="close-molecule-viewer" class="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">                        
+                닫기
+            </button>
+        </div>
+    </div>
+
+
+
+    <!-- 온라인 매칭 모달 -->
+    <div id="online-matching-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold text-green-300">🌐 온라인 매칭</h2>
+          <button id="close-matching-modal" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        
+
+        <!-- 매칭 상태 표시 -->
+        <div id="matching-status" class="text-center mb-6">
+          <div id="matching-waiting" class="hidden">
+            <div class="flex items-center justify-center mb-4">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+            </div>
+            <p class="text-green-400 text-lg">매칭 중...</p>
+            <p class="text-gray-400 text-sm">다른 플레이어를 찾고 있습니다</p>
+          </div>
+          
+          <div id="matching-found" class="hidden">
+            <div class="text-green-400 text-2xl mb-2">🎉</div>
+            <p class="text-green-400 text-lg">매칭 완료!</p>
+            <p class="text-gray-300">상대방: <span id="opponent-name" class="font-bold text-blue-400"></span></p>
+          </div>
+
+          <div id="matching-error" class="hidden">
+            <div class="text-red-400 text-2xl mb-2">❌</div>
+            <p class="text-red-400 text-lg">매칭 실패</p>
+            <p class="text-gray-300" id="error-message">다시 시도해주세요</p>
+          </div>
+        </div>
+
+        <!-- 버튼들 -->
+        <div class="flex space-x-3">
+          <button id="cancel-matching-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded hidden">
+            매칭 취소
+          </button>
+          <button id="close-matching-modal-btn" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+            닫기
+          </button>
+        </div>
+
+        <!-- 연결 상태 표시 -->
+        <div class="mt-4 text-center">
+          <div id="connection-status" class="text-sm">
+            <span id="connection-indicator" class="inline-block w-2 h-2 rounded-full bg-gray-500 mr-2"></span>
+            <span id="connection-text">연결 확인 중...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- 별 관리 모달 (우주) -->
+    <div id="star-management-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center mb-4 flex-shrink-0">
+          <h2 class="text-2xl font-bold text-purple-300">🌟 우주 - 별 관리</h2>
+          <button id="close-star-management-modal" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        
+        <!-- 별 현황 -->
+        <div class="bg-gray-700 p-4 rounded-lg mb-6">
+          <h3 class="text-xl font-bold text-yellow-300 mb-4">별 현황</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-gray-600 p-3 rounded text-center">
+              <div class="text-2xl mb-1">⭐</div>
+              <div class="text-sm text-gray-300">활성 별</div>
+              <div id="active-stars-count" class="text-xl font-bold text-yellow-400">0</div>
+            </div>
+            <div class="bg-gray-600 p-3 rounded text-center">
+              <div class="text-2xl mb-1">⏰</div>
+              <div class="text-sm text-gray-300">초신성 대기 중</div>
+              <div id="pending-supernovas-count" class="text-xl font-bold text-orange-400">0</div>
+            </div>
+            <div class="bg-gray-600 p-3 rounded text-center">
+              <div class="text-2xl mb-1">💫</div>
+              <div class="text-sm text-gray-300">총 생성된 별</div>
+              <div id="total-stars-created" class="text-xl font-bold text-purple-400">0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 별 생성 -->
+        <div class="bg-gray-700 p-4 rounded-lg mb-6">
+          <h3 class="text-xl font-bold text-green-300 mb-4">별 생성</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-600 p-4 rounded">
+              <h4 class="text-lg font-bold text-blue-300 mb-2">Fe → 별 변환</h4>
+              <p class="text-sm text-gray-300 mb-3">Fe 5개를 별 1개로 변환합니다</p>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-sm">보유 Fe:</span>
+                <span id="fe-count" class="font-bold text-blue-400">0</span>
+              </div>
+              <button id="convert-fe-to-stars" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded disabled:opacity-50" disabled>
+                별 생성 불가
+              </button>
+            </div>
+            <div class="bg-gray-600 p-4 rounded">
+              <h4 class="text-lg font-bold text-purple-300 mb-2">고원자번호 원소 → 별 변환</h4>
+              <p class="text-sm text-gray-300 mb-3">원자번호가 높은 원소를 별로 변환합니다</p>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-sm">보유 고원소:</span>
+                <span id="heavy-elements-count" class="font-bold text-purple-400">0</span>
+              </div>
+              <button id="convert-heavy-to-stars" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded disabled:opacity-50" disabled>
+                별 생성 불가
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 초신성 대기열 -->
+        <div class="bg-gray-700 p-4 rounded-lg flex-1 overflow-y-auto">
+          <h3 class="text-xl font-bold text-red-300 mb-4">초신성 대기열</h3>
+          <div id="supernova-queue" class="space-y-2">
+            <div class="text-center text-gray-400 py-8">
+              <div class="text-4xl mb-2">🌌</div>
+              <p>대기 중인 초신성이 없습니다</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- 분자 도감 모달 -->
+    <div id="molecule-guide-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
+        <div class="bg-gray-800 rounded-lg p-6 max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-purple-300">분자 도감</h2>
+                <button id="close-molecule-guide" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            
+            <!-- 검색 및 필터 영역 -->
+            <div class="mb-6">
+                <div class="flex flex-wrap gap-4 mb-4">
+                    <!-- 검색 입력 -->
+                    <div class="flex-1 min-w-64">
+                        <input 
+                            type="text" 
+                            id="molecule-search" 
+                            placeholder="분자명, 화학식, 설명으로 검색..." 
+                            class="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+                        >
+                    </div>
+                    
+                    <!-- 필터 버튼들 -->
+                    <div class="flex gap-2 flex-wrap">
+                        <button class="molecule-filter-btn bg-blue-600 text-white px-3 py-2 rounded text-sm" data-filter="all">전체</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="discovered">발견됨</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="undiscovered">미발견</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="생명">생명</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="기체">기체</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="산성">산성</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="염기">염기</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="독성">독성</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="소독">소독</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="보호">보호</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="금속">금속</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="폭발">폭발</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="극한">극한</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="촉매">촉매</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="내열">내열</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="탈수">탈수</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="연소">연소</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="의료">의료</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="산화">산화</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="방사성">방사성</button>
+                        <button class="molecule-filter-btn bg-gray-600 text-gray-300 px-3 py-2 rounded text-sm" data-filter="핵">핵</button>
+                    </div>
+                </div>
+                
+                <!-- 정렬 버튼들 -->
+                <div class="flex gap-2">
+                    <span class="text-gray-400 text-sm self-center">정렬:</span>
+                    <button class="molecule-sort-btn bg-gray-600 text-gray-300 px-3 py-1 rounded text-sm" data-sort="name">이름</button>
+                    <button class="molecule-sort-btn bg-gray-600 text-gray-300 px-3 py-1 rounded text-sm" data-sort="rarity">희귀도</button>
+                    <button class="molecule-sort-btn bg-gray-600 text-gray-300 px-3 py-1 rounded text-sm" data-sort="atk">공격력</button>
+                    <button class="molecule-sort-btn bg-gray-600 text-gray-300 px-3 py-1 rounded text-sm" data-sort="hp">체력</button>
+                </div>
+            </div>
+            
+            <!-- 분자 목록 -->
+            <div id="molecule-list" class="flex-1 overflow-y-auto">
+                <div class="text-center text-gray-400 py-8">
+                    <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
+                    <p>분자 데이터를 로드 중...</p>
+                </div>
+            </div>
+            
+            <!-- 하단 정보 -->
+            <div class="mt-4 pt-4 border-t border-gray-600 flex justify-between items-center text-sm text-gray-400">
+                <div id="discovery-progress">
+                    발견 진행률: <span id="discovered-count">0</span> / <span id="total-count">0</span> (<span id="discovery-percentage">0</span>%)
+                </div>
+                <div>
+                    <i class="fas fa-check-circle text-green-400"></i> 발견됨
+                    <i class="fas fa-question-circle text-gray-400 ml-4"></i> 미발견
+                </div>
+            </div>
+        </div>
+    </div>
   </div>
+  
+  <style>
+    /* 기본 3D 효과 */
+    .perspective-1200 {
+      perspective: 1200px;
+      perspective-origin: 50% 85%;
+    }
 
-  <!-- 스크립트 파일 로드 (재구성된 폴더 구조) -->
-  <!-- 유틸리티 -->
-  <script src="src/js/utils/helpers.js"></script>
-  <script src="src/js/utils/coin.js"></script>
+    .transform-style-preserve-3d {
+      transform-style: preserve-3d;
+    }
 
-  <!-- 코어 -->
-  <script src="src/js/core/data.js"></script>
-  <script src="src/js/core/state.js"></script>
-  <script src="src/js/core/battlefield.js"></script>
-  
-  <!-- UI -->
-  <script src="src/js/ui/animations.js"></script>
-  <script src="src/js/ui/battlefield.js"></script> <!-- 추가된 전장 렌더링 파일 -->
-  <script src="src/js/ui/modals.js"></script>
-  <script src="src/js/ui/tutorial.js"></script>
-  <script src="src/js/ui/ui.js"></script>
-  <script src="src/js/styles.js"></script>
-  
-  <!-- 메커니즘 -->
-  <script src="src/js/mechanics/card.js"></script>
-  <script src="src/js/mechanics/molecules.js"></script>
-  <script src="src/js/mechanics/reactions.js"></script>
-  <script src="src/js/mechanics/effects.js"></script>
-  <script src="src/js/mechanics/battle.js"></script>
-  <script src="src/js/mechanics/upgrades.js"></script>
-  
-  <!-- AI -->
-  <script src="src/js/ai/ai.js"></script>
-  
-  <!-- 코어 및 메인 -->
-  <script src="src/js/core/game.js"></script>
+
+    /* 그라디언트 배경 - 원소 주기율표 색상 */
+    body {
+      background: linear-gradient(135deg, 
+        #ff6b6b 0%,    /* 수소 - 빨강 */
+        #4ecdc4 10%,   /* 헬륨 - 청록 */
+        #45b7d1 20%,   /* 리튬 - 파랑 */
+        #96ceb4 30%,   /* 베릴륨 - 연두 */
+        #feca57 40%,   /* 붕소 - 노랑 */
+        #ff9ff3 50%,   /* 탄소 - 분홍 */
+        #54a0ff 60%,   /* 질소 - 하늘 */
+        #5f27cd 70%,   /* 산소 - 보라 */
+        #00d2d3 80%,   /* 플루오린 - 청록 */
+        #ff9f43 90%,   /* 네온 - 주황 */
+        #c44569 100%   /* 나트륨 - 자주 */
+      );
+      background-size: 400% 400%;
+      animation: gradient-shift 20s ease infinite;
+    }
+
+    @keyframes gradient-shift {
+      0% { background-position: 0% 50%; }
+      25% { background-position: 100% 50%; }
+      50% { background-position: 100% 100%; }
+      75% { background-position: 0% 100%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* 카드 슬롯 애니메이션 */
+    .lane-slot {
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .lane-slot:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+      background: linear-gradient(145deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
+    }
+    
+    .lane-slot.drop-active {
+      background: linear-gradient(145deg, rgba(56, 189, 248, 0.4), rgba(56, 189, 248, 0.2));
+      border: 2px dashed rgb(56, 189, 248);
+      border-radius: 12px;
+      box-shadow: inset 0 0 20px rgba(56, 189, 248, 0.6), 0 0 30px rgba(56, 189, 248, 0.4);
+      animation: pulse-border 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse-border {
+      0%, 100% { border-color: rgb(56, 189, 248); }
+      50% { border-color: rgb(147, 197, 253); }
+    }
+
+    .card.hand-drop-target {
+        outline: 3px dashed #facc15;
+        outline-offset: 3px;
+        transform: scale(1.08) rotateY(5deg);
+        box-shadow: 0 0 25px #facc15, 0 10px 30px rgba(250, 204, 21, 0.3);
+        animation: target-glow 1.5s ease-in-out infinite;
+    }
+
+    #player-hand.drop-active {
+        background: linear-gradient(145deg, rgba(250, 204, 21, 0.2), rgba(250, 204, 21, 0.1));
+        border: 2px dashed #facc15;
+        box-shadow: inset 0 0 20px rgba(250, 204, 21, 0.3), 0 0 30px rgba(250, 204, 21, 0.2);
+        animation: hand-drop-glow 1s ease-in-out infinite;
+    }
+
+    @keyframes hand-drop-glow {
+        0%, 100% { 
+            box-shadow: inset 0 0 20px rgba(250, 204, 21, 0.3), 0 0 30px rgba(250, 204, 21, 0.2);
+        }
+        50% { 
+            box-shadow: inset 0 0 30px rgba(250, 204, 21, 0.5), 0 0 40px rgba(250, 204, 21, 0.4);
+        }
+    }
+
+    @keyframes target-glow {
+      0%, 100% { box-shadow: 0 0 25px #facc15, 0 10px 30px rgba(250, 204, 21, 0.3); }
+      50% { box-shadow: 0 0 35px #facc15, 0 15px 40px rgba(250, 204, 21, 0.5); }
+    }
+    
+    .skull-card {
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"></circle><path d="M8 14h8M9 16v4M15 16v4M12 13v7"></path></svg>');                                                                              
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 60%;
+    }
+
+    /* 카드 애니메이션 강화 */
+    .card {
+      cursor: grab;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3), 0 4px 10px rgba(0,0,0,0.2);
+      background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255,255,255,0.3);
+      position: relative;
+      overflow: visible;
+    }
+
+    /* 카드 뒷배경 원자 구조 */
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 60px;
+      height: 60px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.1), transparent);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 0;
+    }
+
+    .card::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 40px;
+      height: 40px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.05), transparent);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 0;
+    }
+
+    /* 카드 내부 전자 궤도 */
+    .card .electron-orbits {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 80px;
+      height: 80px;
+      transform: translate(-50%, -50%);
+      z-index: 0;
+      opacity: 0.3;
+    }
+
+    .card .electron-orbits::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 80px;
+      height: 80px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      animation: card-electron-orbit 8s linear infinite;
+    }
+
+    .card .electron-orbits::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0px;
+      height: 0px;
+      background: transparent;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      animation: none;
+      display: none;
+    }
+
+    @keyframes card-electron-orbit {
+      0% { transform: translate(-50%, -50%) rotate(0deg) translateX(40px) rotate(0deg); }
+      100% { transform: translate(-50%, -50%) rotate(360deg) translateX(40px) rotate(-360deg); }
+    }
+
+    /* 원소별 테두리 효과 */
+    .element-nonmetal {
+      border: 2px solid rgba(255, 107, 107, 0.6);
+      box-shadow: 0 0 20px rgba(255, 107, 107, 0.3), inset 0 0 20px rgba(255, 107, 107, 0.1);
+    }
+
+    .element-noble-gas {
+      border: 2px solid rgba(78, 205, 196, 0.6);
+      box-shadow: 0 0 20px rgba(78, 205, 196, 0.3), inset 0 0 20px rgba(78, 205, 196, 0.1);
+    }
+
+    .element-alkali-metal {
+      border: 2px solid rgba(69, 183, 209, 0.6);
+      box-shadow: 0 0 20px rgba(69, 183, 209, 0.3), inset 0 0 20px rgba(69, 183, 209, 0.1);
+    }
+
+    .element-alkaline-earth {
+      border: 2px solid rgba(150, 206, 180, 0.6);
+      box-shadow: 0 0 20px rgba(150, 206, 180, 0.3), inset 0 0 20px rgba(150, 206, 180, 0.1);
+    }
+
+    .element-metalloid {
+      border: 2px solid rgba(254, 202, 87, 0.6);
+      box-shadow: 0 0 20px rgba(254, 202, 87, 0.3), inset 0 0 20px rgba(254, 202, 87, 0.1);
+    }
+
+    .element-transition-metal {
+      border: 2px solid rgba(255, 159, 243, 0.6);
+      box-shadow: 0 0 20px rgba(255, 159, 243, 0.3), inset 0 0 20px rgba(255, 159, 243, 0.1);
+    }
+
+    .element-halogen {
+      border: 2px solid rgba(84, 160, 255, 0.6);
+      box-shadow: 0 0 20px rgba(84, 160, 255, 0.3), inset 0 0 20px rgba(84, 160, 255, 0.1);
+    }
+
+    .element-lanthanide {
+      border: 2px solid rgba(95, 39, 205, 0.6);
+      box-shadow: 0 0 20px rgba(95, 39, 205, 0.3), inset 0 0 20px rgba(95, 39, 205, 0.1);
+    }
+
+    .element-actinide {
+      border: 2px solid rgba(0, 210, 211, 0.6);
+      box-shadow: 0 0 20px rgba(0, 210, 211, 0.3), inset 0 0 20px rgba(0, 210, 211, 0.1);
+    }
+
+    .element-other-metal {
+      border: 2px solid rgba(255, 159, 67, 0.6);
+      box-shadow: 0 0 20px rgba(255, 159, 67, 0.3), inset 0 0 20px rgba(255, 159, 67, 0.1);
+    }
+
+    .element-hydrogen {
+      border: 2px solid rgba(255, 107, 107, 0.8);
+      box-shadow: 0 0 25px rgba(255, 107, 107, 0.5), inset 0 0 25px rgba(255, 107, 107, 0.2);
+    }
+
+    .element-carbon {
+      border: 2px solid rgba(45, 55, 72, 0.8);
+      box-shadow: 0 0 25px rgba(45, 55, 72, 0.5), inset 0 0 25px rgba(45, 55, 72, 0.2);
+    }
+
+    .element-gold {
+      border: 2px solid rgba(255, 215, 0, 0.8);
+      box-shadow: 0 0 30px rgba(255, 215, 0, 0.6), inset 0 0 30px rgba(255, 215, 0, 0.3);
+    }
+
+    .element-uranium {
+      border: 2px solid rgba(196, 69, 105, 0.8);
+      box-shadow: 0 0 25px rgba(196, 69, 105, 0.5), inset 0 0 25px rgba(196, 69, 105, 0.2);
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    .card:hover::before {
+      left: 100%;
+    }
+
+    .card:hover {
+      transform: translateY(-8px) scale(1.05) rotateY(2deg);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 15px 25px rgba(0,0,0,0.2);
+    }
+
+    .card:active {
+      transform: translateY(-4px) scale(1.02);
+    }
+
+    .card.dragging {
+      cursor: grabbing;
+      opacity: 0.9;
+      transform: scale(1.1) rotateZ(3deg) rotateY(5deg);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6), 0 15px 30px rgba(0,0,0,0.3);
+      z-index: 1000;
+    }
+
+    /* 분자 합성 카드 */
+    .synthesis-card {
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #feca57, #ff9ff3, #54a0ff);
+      background-size: 400% 400%;
+      animation: rainbow-bg 8s ease infinite;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3), 0 4px 10px rgba(0,0,0,0.2);
+      position: relative;
+    }
+
+    /* 분자 카드 더욱 화려하게 */
+    .molecule-flashy {
+      background-image: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.12), transparent 40%),
+                        radial-gradient(circle at 80% 30%, rgba(255,255,255,0.08), transparent 45%),
+                        linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.15));
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.6), 0 0 40px rgba(59, 130, 246, 0.3);
+      animation: molecule-glow 3s ease-in-out infinite;
+    }
+
+    @keyframes molecule-glow {
+      0%, 100% { box-shadow: 0 0 18px rgba(139,92,246,0.5), 0 0 30px rgba(59,130,246,0.25); transform: translateY(0); }
+      50% { box-shadow: 0 0 28px rgba(139,92,246,0.9), 0 0 60px rgba(59,130,246,0.5); transform: translateY(-1px); }
+    }
+
+    .synthesis-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%);
+      animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    @keyframes rainbow-bg {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    
+    @keyframes pulse-glow {
+      0% { box-shadow: 0 0 10px rgba(255, 223, 0, 0.7); }
+      50% { box-shadow: 0 0 30px rgba(255, 223, 0, 1), 0 0 50px rgba(255, 223, 0, 0.5); }
+      100% { box-shadow: 0 0 10px rgba(255, 223, 0, 0.7); }
+    }
+
+    .reaction-active {
+      animation: pulse-glow 2s infinite;
+    }
+
+    /* 분자 애니메이션 */
+    .molecule-animation {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20;
+    }
+
+    .molecule-flash {
+      animation: flash 1s forwards;
+    }
+
+    @keyframes flash {
+      0% { 
+        background: linear-gradient(45deg, rgba(147, 51, 234, 0), rgba(59, 130, 246, 0));
+        transform: scale(1);
+      }
+      50% { 
+        background: linear-gradient(45deg, rgba(147, 51, 234, 0.8), rgba(59, 130, 246, 0.8));
+        transform: scale(1.1);
+      }
+      100% { 
+        background: linear-gradient(45deg, rgba(147, 51, 234, 0), rgba(59, 130, 246, 0));
+        transform: scale(1);
+      }
+    }
+
+    .element-slot.active {
+      border-color: rgb(139, 92, 246);
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.8), inset 0 0 20px rgba(139, 92, 246, 0.3);
+      animation: active-pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes active-pulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.8), inset 0 0 20px rgba(139, 92, 246, 0.3); }
+      50% { box-shadow: 0 0 30px rgba(139, 92, 246, 1), inset 0 0 30px rgba(139, 92, 246, 0.5); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0) rotate(0deg); }
+      20%, 60% { transform: translateX(-8px) rotate(-1deg); }
+      40%, 80% { transform: translateX(8px) rotate(1deg); }
+    }
+
+    .base-damage {
+      animation: shake 0.6s ease-in-out;
+    }
+
+    .card-glow {
+      box-shadow: 0 0 25px rgba(255, 255, 255, 0.8), 0 0 50px rgba(255, 255, 255, 0.4);
+      animation: glow-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes glow-pulse {
+      0%, 100% { box-shadow: 0 0 25px rgba(255, 255, 255, 0.8), 0 0 50px rgba(255, 255, 255, 0.4); }
+      50% { box-shadow: 0 0 35px rgba(255, 255, 255, 1), 0 0 70px rgba(255, 255, 255, 0.6); }
+    }
+
+    .card-heal {
+      animation: heal-pulse 1.5s ease-in-out;
+    }
+
+    @keyframes heal-pulse {
+      0% { 
+        box-shadow: 0 0 10px rgba(74, 222, 128, 0);
+        transform: scale(1);
+      }
+      50% { 
+        box-shadow: 0 0 30px rgba(74, 222, 128, 1), 0 0 50px rgba(74, 222, 128, 0.5);
+        transform: scale(1.05);
+      }
+      100% { 
+        box-shadow: 0 0 10px rgba(74, 222, 128, 0);
+        transform: scale(1);
+      }
+    }
+    
+    .special-ability {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: linear-gradient(45deg, #ffd700, #ffed4e);
+      color: black;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      box-shadow: 0 4px 15px rgba(255, 215, 0, 0.6);
+      animation: ability-bounce 2s ease-in-out infinite;
+    }
+
+    @keyframes ability-bounce {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-3px) scale(1.1); }
+    }
+
+    .draw-animation {
+      position: absolute;
+      transform-style: preserve-3d;
+      transition: all 0.5s ease;
+    }
+
+    .molecule-combine-effect {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .molecule-particles {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: linear-gradient(45deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.6));
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+    }
+
+    .atom-count {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: linear-gradient(45deg, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.6));
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+
+    .element-rank {
+      position: absolute;
+      bottom: 4px;
+      left: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    }
+
+    .rank-common { color: #ffffff; }
+    .rank-uncommon { color: #4ade80; }
+    .rank-rare { color: #60a5fa; }
+    .rank-epic { color: #c084fc; }
+    .rank-legendary { color: #facc15; }
+
+    /* 원소별 실제 색상 시스템 - 주기율표 분류 */
+    
+    /* 비금속 원소 */
+    .element-nonmetal { 
+      background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+      box-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-nonmetal::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                  radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+      animation: atomic-pattern 8s ease-in-out infinite;
+    }
+    
+    /* 비활성 기체 */
+    .element-noble-gas { 
+      background: linear-gradient(135deg, #4ecdc4, #7dd3fc);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-noble-gas::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.15) 0%, transparent 40%),
+                  radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 40%);
+      animation: atomic-pattern 10s ease-in-out infinite;
+    }
+    
+    /* 알칼리 금속 */
+    .element-alkali-metal { 
+      background: linear-gradient(135deg, #45b7d1, #74c0fc);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-alkali-metal::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.12) 0%, transparent 45%),
+                  radial-gradient(circle at 60% 60%, rgba(255, 255, 255, 0.08) 0%, transparent 45%);
+      animation: atomic-pattern 6s ease-in-out infinite;
+    }
+    
+    /* 알칼리 토금속 */
+    .element-alkaline-earth { 
+      background: linear-gradient(135deg, #96ceb4, #a7f3d0);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-alkaline-earth::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                  radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.06) 0%, transparent 50%);
+      animation: atomic-pattern 7s ease-in-out infinite;
+    }
+    
+    /* 준금속 */
+    .element-metalloid { 
+      background: linear-gradient(135deg, #feca57, #fde68a);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-metalloid::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.2) 0%, transparent 40%),
+                  radial-gradient(circle at 65% 65%, rgba(255, 255, 255, 0.1) 0%, transparent 40%);
+      animation: atomic-pattern 9s ease-in-out infinite;
+    }
+    
+    /* 전이 금속 */
+    .element-transition-metal { 
+      background: linear-gradient(135deg, #ff9ff3, #fbb6ce);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-transition-metal::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15) 0%, transparent 45%),
+                  radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.08) 0%, transparent 45%);
+      animation: atomic-pattern 8s ease-in-out infinite;
+    }
+    
+    /* 할로겐 */
+    .element-halogen { 
+      background: linear-gradient(135deg, #54a0ff, #93c5fd);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-halogen::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.18) 0%, transparent 40%),
+                  radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.12) 0%, transparent 40%);
+      animation: atomic-pattern 11s ease-in-out infinite;
+    }
+    
+    /* 란타넘족 */
+    .element-lanthanide { 
+      background: linear-gradient(135deg, #5f27cd, #a78bfa);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-lanthanide::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.2) 0%, transparent 35%),
+                  radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.1) 0%, transparent 35%);
+      animation: atomic-pattern 12s ease-in-out infinite;
+    }
+    
+    /* 악티늄족 */
+    .element-actinide { 
+      background: linear-gradient(135deg, #00d2d3, #67e8f9);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-actinide::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.16) 0%, transparent 40%),
+                  radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.08) 0%, transparent 40%);
+      animation: atomic-pattern 13s ease-in-out infinite;
+    }
+    
+    /* 기타 금속 */
+    .element-other-metal { 
+      background: linear-gradient(135deg, #ff9f43, #fdba74);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-other-metal::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.14) 0%, transparent 45%),
+                  radial-gradient(circle at 65% 65%, rgba(255, 255, 255, 0.07) 0%, transparent 45%);
+      animation: atomic-pattern 10s ease-in-out infinite;
+    }
+    
+    /* 특별한 원소들 */
+    .element-hydrogen { 
+      background: linear-gradient(135deg, #ff6b6b, #ffa8a8);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-hydrogen::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.3) 0%, transparent 30%);
+      animation: hydrogen-pattern 3s ease-in-out infinite;
+    }
+    
+    .element-carbon { 
+      background: linear-gradient(135deg, #2d3748, #4a5568);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-carbon::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: 
+        radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 20%),
+        radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.1) 0%, transparent 20%),
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 40%);
+      animation: carbon-pattern 5s ease-in-out infinite;
+    }
+    
+    .element-gold { 
+      background: linear-gradient(135deg, #ffd700, #ffed4e);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-gold::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: 
+        radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.4) 0%, transparent 25%),
+        radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.3) 0%, transparent 25%),
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.2) 0%, transparent 35%);
+      animation: gold-pattern 4s ease-in-out infinite;
+    }
+    
+    .element-uranium { 
+      background: linear-gradient(135deg, #c44569, #e55353);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .element-uranium::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: 
+        radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.2) 0%, transparent 30%),
+        radial-gradient(circle at 70% 70%, rgba(255, 255, 255, 0.15) 0%, transparent 30%),
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 40%);
+      animation: uranium-pattern 2s ease-in-out infinite;
+    }
+
+    /* 원자 패턴 애니메이션 */
+    @keyframes atomic-pattern {
+      0%, 100% { 
+        transform: rotate(0deg) scale(1);
+        opacity: 0.8;
+      }
+      25% {
+        transform: rotate(90deg) scale(1.1);
+        opacity: 1;
+      }
+      50% {
+        transform: rotate(180deg) scale(1);
+        opacity: 0.9;
+      }
+      75% {
+        transform: rotate(270deg) scale(1.1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes hydrogen-pattern {
+      0%, 100% { 
+        transform: scale(1) rotate(0deg);
+        opacity: 0.6;
+      }
+      50% {
+        transform: scale(1.2) rotate(180deg);
+        opacity: 1;
+      }
+    }
+
+    @keyframes carbon-pattern {
+      0%, 100% { 
+        transform: rotate(0deg) scale(1);
+        opacity: 0.7;
+      }
+      33% {
+        transform: rotate(120deg) scale(1.1);
+        opacity: 1;
+      }
+      66% {
+        transform: rotate(240deg) scale(1.05);
+        opacity: 0.9;
+      }
+    }
+
+    @keyframes gold-pattern {
+      0%, 100% { 
+        transform: scale(1) rotate(0deg);
+        opacity: 0.8;
+      }
+      25% {
+        transform: scale(1.15) rotate(90deg);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.1) rotate(180deg);
+        opacity: 0.9;
+      }
+      75% {
+        transform: scale(1.15) rotate(270deg);
+        opacity: 1;
+      }
+    }
+
+    @keyframes uranium-pattern {
+      0%, 100% { 
+        transform: scale(1) rotate(0deg);
+        opacity: 0.6;
+      }
+      25% {
+        transform: scale(1.3) rotate(90deg);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.1) rotate(180deg);
+        opacity: 0.8;
+      }
+      75% {
+        transform: scale(1.3) rotate(270deg);
+        opacity: 1;
+      }
+    }
+
+    /* 튜토리얼 애니메이션 */
+    .tutorial-step {
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .tutorial-step.active {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+
+    .tutorial-step.hidden {
+      display: none;
+      opacity: 0;
+      transform: translateX(20px) scale(0.95);
+    }
+
+    [src^="src/images/tutorial/"] {
+      background: linear-gradient(135deg, #4b5563, #1f2937, #111827);
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-style: italic;
+      color: #9ca3af;
+      border-radius: 12px;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .animation-in-progress {
+      pointer-events: none;
+    }
+
+    .molecule-card {
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .molecule-card.hidden {
+      display: none;
+      opacity: 0;
+      transform: translateX(30px) scale(0.9);
+    }
+
+    #prev-molecule, #next-molecule {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: linear-gradient(145deg, #374151, #1f2937);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    #prev-molecule:hover, #next-molecule:hover {
+      background: linear-gradient(145deg, #4b5563, #374151);
+      transform: scale(1.1) translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    /* 버튼 그라디언트 효과 */
+    button {
+      background: linear-gradient(145deg, #3b82f6, #1d4ed8);
+      border: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    button:hover::before {
+      left: 100%;
+    }
+
+    button:hover {
+      transform: translateY(-2px) scale(1.05);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    button:active {
+      transform: translateY(0) scale(1.02);
+    }
+
+    /* 특별한 버튼 색상 */
+    #draw-basic-btn { background: linear-gradient(145deg, #10b981, #047857); }
+    #draw-premium-btn { background: linear-gradient(145deg, #3b82f6, #1d4ed8); }
+    #draw-legend-btn { background: linear-gradient(145deg, #8b5cf6, #7c3aed); }
+    #heal-base-btn { background: linear-gradient(145deg, #059669, #047857); }
+    #end-turn-btn { background: linear-gradient(145deg, #f59e0b, #d97706); }
+    #reset-btn { background: linear-gradient(145deg, #ef4444, #dc2626); }
+
+    /* 모달 애니메이션 */
+    .modal {
+      animation: modal-appear 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes modal-appear {
+      0% {
+        opacity: 0;
+        transform: scale(0.8) translateY(-20px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    /* 반응형 애니메이션 */
+    @media (max-width: 768px) {
+      .card:hover {
+        transform: translateY(-4px) scale(1.02);
+      }
+      
+      .card.dragging {
+        transform: scale(1.05) rotateZ(2deg);
+      }
+      
+      .lane-slot:hover {
+        transform: translateY(-1px) scale(1.01);
+      }
+
+      /* 모바일에서 파티클 효과 최적화 */
+      .particle {
+        width: 3px !important;
+        height: 3px !important;
+      }
+
+      /* 모바일에서 애니메이션 성능 최적화 */
+      .card {
+        will-change: transform;
+        backface-visibility: hidden;
+        transform: translateZ(0);
+      }
+
+      /* 모바일 터치 피드백 */
+      .card:active {
+        transform: scale(0.95);
+        transition: transform 0.1s ease;
+      }
+
+      button:active {
+        transform: scale(0.95);
+        transition: transform 0.1s ease;
+      }
+
+      /* 모바일에서 그라디언트 배경 최적화 */
+      body {
+        background-attachment: fixed;
+      }
+
+      /* 모바일에서 3D 효과 제한 */
+      .card:hover {
+        transform: translateY(-4px) scale(1.02);
+      }
+
+      .card.dragging {
+        transform: scale(1.05) rotate(2deg);
+      }
+    }
+
+    /* 매우 작은 화면 (320px 이하) */
+    @media (max-width: 320px) {
+      .card {
+        transition: transform 0.2s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-2px) scale(1.01);
+      }
+
+      .particle {
+        width: 2px !important;
+        height: 2px !important;
+      }
+    }
+
+    /* 태블릿 화면 (768px - 1024px) */
+    @media (min-width: 768px) and (max-width: 1024px) {
+      .card:hover {
+        transform: translateY(-6px) scale(1.03) rotateY(1deg);
+      }
+
+      .card.dragging {
+        transform: scale(1.08) rotateZ(2deg) rotateY(3deg);
+      }
+    }
+
+    /* 대형 화면 (1024px 이상) */
+    @media (min-width: 1024px) {
+      .card:hover {
+        transform: translateY(-8px) scale(1.05) rotateY(2deg);
+      }
+
+      .card.dragging {
+        transform: scale(1.1) rotateZ(3deg) rotateY(5deg);
+      }
+    }
+
+    /* 고해상도 디스플레이 최적화 */
+    @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+      .card {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+      }
+    }
+
+    /* 작은 측면 패널 스타일 */
+    #computer-base, #player-base {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #computer-base:hover, #player-base:hover {
+      transform: scale(1.05);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    /* 기지 패널 반응형 */
+    @media (max-width: 768px) {
+      #computer-base, #player-base {
+        width: 28px !important;
+        padding: 0.5rem !important;
+      }
+      
+      #computer-base h3, #player-base h3 {
+        font-size: 0.6rem !important;
+        margin-bottom: 0.25rem !important;
+      }
+      
+      #computer-base .text-xs, #player-base .text-xs {
+        font-size: 0.6rem !important;
+      }
+      
+      #computer-base .h-1\.5, #player-base .h-1\.5 {
+        height: 0.25rem !important;
+      }
+    }
+
+    /* 애니메이션 성능 최적화 */
+    .card, .lane-slot, button {
+      will-change: transform;
+      backface-visibility: hidden;
+      transform: translateZ(0);
+    }
+
+    /* 터치 디바이스 최적화 */
+    @media (hover: none) and (pointer: coarse) {
+      .card:hover {
+        transform: none;
+      }
+
+      .card:active {
+        transform: scale(0.95);
+      }
+
+      .lane-slot:hover {
+        transform: none;
+      }
+
+      .lane-slot:active {
+        transform: scale(1.02);
+      }
+    }
+
+    /* 파티클 효과 */
+    .particle {
+      position: absolute;
+      pointer-events: none;
+      border-radius: 50%;
+      animation: particle-float 2s ease-out forwards;
+    }
+
+    @keyframes particle-float {
+      0% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(0.5) translateY(-100px);
+      }
+    }
+
+    /* 빛나는 효과 */
+    .shine-effect {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .shine-effect::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      animation: shine 2s infinite;
+    }
+
+    @keyframes shine {
+      0% { left: -100%; }
+      100% { left: 100%; }
+    }
+    
+    #draw-cards-btn { 
+      background: linear-gradient(145deg, #10b981, #3b82f6, #8b5cf6); 
+      background-size: 200% 200%;
+      animation: gradient-shift 3s ease infinite;
+    }
+
+    /* 에너지와 열 표시 애니메이션 */
+    @keyframes energy-pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes heat-pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    .energy-updated {
+      animation: energy-pulse 0.3s ease-in-out;
+    }
+
+    .heat-updated {
+      animation: heat-pulse 0.3s ease-in-out;
+    }
+
+    .coin-updated {
+      animation: coin-pulse 0.3s ease-in-out;
+    }
+
+    @keyframes coin-pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    /* 카드 팩 시스템 스타일 */
+    .card-pack {
+      background: linear-gradient(145deg, #8b5cf6, #a78bfa);
+      box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .card-pack:hover {
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 15px 35px rgba(139, 92, 246, 0.4);
+    }
+
+    .pack-opening-animation {
+      animation: pack-opening 2s ease-in-out;
+    }
+
+    @keyframes pack-opening {
+      0% { transform: scale(1) rotateY(0deg); }
+      25% { transform: scale(1.1) rotateY(5deg); }
+      50% { transform: scale(1.2) rotateY(10deg); }
+      75% { transform: scale(1.1) rotateY(5deg); }
+      100% { transform: scale(1) rotateY(0deg); }
+    }
+
+    .card-reveal {
+      animation: card-reveal 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    @keyframes card-reveal {
+      0% { 
+        opacity: 0; 
+        transform: scale(0) rotateY(180deg); 
+      }
+      50% { 
+        opacity: 0.5; 
+        transform: scale(0.5) rotateY(90deg); 
+      }
+      100% { 
+        opacity: 1; 
+        transform: scale(1) rotateY(0deg); 
+      }
+    }
+
+    .sparkle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: #fbbf24;
+      border-radius: 50%;
+      animation: sparkle-float 1s ease-out forwards;
+    }
+
+    @keyframes sparkle-float {
+      0% {
+        opacity: 1;
+        transform: scale(0) translateY(0);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1) translateY(-20px);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(0.5) translateY(-40px);
+      }
+    }
+
+    .pack-glow {
+      box-shadow: 0 0 30px rgba(139, 92, 246, 0.6), 0 0 60px rgba(139, 92, 246, 0.3);
+      animation: pack-glow-pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes pack-glow-pulse {
+      0%, 100% { 
+        box-shadow: 0 0 30px rgba(139, 92, 246, 0.6), 0 0 60px rgba(139, 92, 246, 0.3);
+      }
+      50% { 
+        box-shadow: 0 0 40px rgba(139, 92, 246, 0.8), 0 0 80px rgba(139, 92, 246, 0.5);
+      }
+    }
+  </style>
+
+  <script src="src/js/specialAbilityMapper.js"></script>
+  <script src="src/js/game.js"></script>
+  <script src="src/js/elementColors.js"></script>
+  <script src="src/js/card.js"></script>
+  <script src="src/js/numberFormatting.js"></script>
+  <script src="src/js/coin.js"></script>
+  <script src="src/js/animations.js"></script>
+  <script src="src/js/battlefield.js"></script>
+  <script src="src/js/dragdrop.js"></script>
+  <script src="src/js/molecules.js"></script>
+  <script src="src/js/moleculeGuide.js"></script>
+  <script src="src/js/fusionSystem.js"></script>
+  <script src="src/js/researchShop.js"></script>
+  <script src="src/js/starManagement.js"></script>
+  <script src="src/js/fusionUI.js"></script>
+  <script src="src/js/cardPackSystem.js"></script>
+  <script src="src/js/ui.js"></script>
+  <script src="src/js/tutorial.js"></script>
+  <script src="src/js/onlineMatching.js"></script>
   <script src="src/js/app.js"></script>
 </body>
 </html>
