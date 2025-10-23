@@ -733,11 +733,11 @@ function showCardDetail(card) {
     
     // Add fuel button for synthesis cards (more energy)
     const currentEnergy = gameState.energy || 0;
-    const fuelCost = 3; // 분자 카드는 3 에너지
+    const fuelCost = calculateMoleculeEnergyValue(card); // 분자별 에너지 값 계산
     detailHtml += `<div class="bg-orange-900/30 p-3 rounded-lg mb-4 border border-orange-500/50">`;
     detailHtml += `<h3 class="text-lg font-semibold text-orange-300 mb-2">연료 사용</h3>`;
     detailHtml += `<p class="text-sm text-gray-400 mb-3">현재 에너지: ${currentEnergy} ⚡</p>`;
-    detailHtml += `<p class="text-sm text-gray-400 mb-3">이 분자를 연료로 사용하여 에너지를 생성합니다.</p>`;
+    detailHtml += `<p class="text-sm text-gray-400 mb-3">이 분자를 연료로 사용하여 <span class="text-orange-300 font-bold">${fuelCost} 에너지</span>를 생성합니다.</p>`;
     detailHtml += `<button id="use-as-fuel" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded font-bold transition-colors">`;
     detailHtml += `연료로 사용 (+${fuelCost} ⚡)`;
     detailHtml += `</button>`;
@@ -770,11 +770,11 @@ function showCardDetail(card) {
      
      // Add fuel button for energy generation
      const currentEnergy = gameState.energy || 0;
-     const fuelCost = 1; // 1개 카드당 1 에너지
+     const fuelCost = calculateElementEnergyValue(card); // 원소별 에너지 값 계산
      detailHtml += `<div class="bg-orange-900/30 p-3 rounded-lg mb-4 border border-orange-500/50">`;
      detailHtml += `<h3 class="text-lg font-semibold text-orange-300 mb-2">연료 사용</h3>`;
      detailHtml += `<p class="text-sm text-gray-400 mb-3">현재 에너지: ${currentEnergy} ⚡</p>`;
-     detailHtml += `<p class="text-sm text-gray-400 mb-3">이 카드를 연료로 사용하여 에너지를 생성합니다.</p>`;
+     detailHtml += `<p class="text-sm text-gray-400 mb-3">이 원소를 연료로 사용하여 <span class="text-orange-300 font-bold">${fuelCost} 에너지</span>를 생성합니다.</p>`;
      detailHtml += `<button id="use-as-fuel" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded font-bold transition-colors">`;
      detailHtml += `연료로 사용 (+${fuelCost} ⚡)`;
      detailHtml += `</button>`;
@@ -810,9 +810,14 @@ function showCardDetail(card) {
         gameState.playerHand.splice(cardIndex, 1);
         
         // 카드 타입에 따라 다른 에너지 양 제공
-        let energyGained = 1; // 기본 원소 카드
-        if (card.isSynthesis || card.type === 'molecule') {
-          energyGained = 3; // 분자 카드는 3 에너지
+        let energyGained = 1; // 기본값
+        
+        if (card.element && !card.isSynthesis) {
+          // 원소 카드 - 원소별 에너지 값 계산
+          energyGained = calculateElementEnergyValue(card);
+        } else if (card.isSynthesis || card.type === 'molecule') {
+          // 분자 카드 - 분자별 에너지 값 계산
+          energyGained = calculateMoleculeEnergyValue(card);
         }
         
         // 에너지 추가
@@ -835,6 +840,101 @@ function showCardDetail(card) {
       }
     });
   }
+}
+
+// 원소별 에너지 지급량 계산
+function calculateElementEnergyValue(card) {
+  if (!card || !card.element) return 1;
+  
+  const element = card.element;
+  const atomicNumber = element.number || 1;
+  const rarity = card.rarity || 'common';
+  const category = element.category || '';
+  
+  // 기본 에너지 값 (원자번호 기반)
+  let baseEnergy = Math.floor(Math.log(atomicNumber) * 2) + 1;
+  
+  // 희귀도 보너스
+  const rarityMultipliers = {
+    'common': 1.0,
+    'uncommon': 1.5,
+    'rare': 2.0,
+    'epic': 3.0,
+    'legendary': 5.0
+  };
+  
+  baseEnergy = Math.floor(baseEnergy * (rarityMultipliers[rarity] || 1.0));
+  
+  // 카테고리별 보너스
+  const categoryBonuses = {
+    '비금속': 1.2,
+    '비활성 기체': 1.5,
+    '알칼리 금속': 1.1,
+    '알칼리 토금속': 1.1,
+    '준금속': 1.3,
+    '전이 금속': 1.4,
+    '할로겐': 1.6,
+    '란타넘족': 1.8,
+    '악티늄족': 2.0,
+    '기타 금속': 1.2
+  };
+  
+  if (categoryBonuses[category]) {
+    baseEnergy = Math.floor(baseEnergy * categoryBonuses[category]);
+  }
+  
+  // 특별한 원소들 추가 보너스
+  if (element.symbol === 'H') baseEnergy = Math.max(baseEnergy, 2); // 수소는 최소 2
+  if (element.symbol === 'C') baseEnergy = Math.max(baseEnergy, 3); // 탄소는 최소 3
+  if (element.symbol === 'Au') baseEnergy = Math.max(baseEnergy, 5); // 금은 최소 5
+  if (element.symbol === 'U') baseEnergy = Math.max(baseEnergy, 8); // 우라늄은 최소 8
+  
+  return Math.max(1, baseEnergy); // 최소 1 에너지 보장
+}
+
+// 분자별 에너지 지급량 계산
+function calculateMoleculeEnergyValue(card) {
+  if (!card) return 3;
+  
+  let baseEnergy = 3; // 기본 분자 에너지
+  
+  // 분자 복잡도에 따른 보너스
+  if (card.components && card.components.length > 0) {
+    baseEnergy += card.components.length * 2; // 구성 원소 수만큼 보너스
+  }
+  
+  // 분자 타입별 보너스
+  if (card.type === 'molecule') {
+    baseEnergy += 2; // 분자 카드 보너스
+  }
+  
+  // 특수 효과가 있는 분자 보너스
+  if (card.effect && card.effect.type) {
+    baseEnergy += 3; // 특수 효과 보너스
+  }
+  
+  // 희귀도 보너스 (분자도 희귀도가 있을 경우)
+  const rarity = card.rarity || 'common';
+  const rarityMultipliers = {
+    'common': 1.0,
+    'uncommon': 1.3,
+    'rare': 1.8,
+    'epic': 2.5,
+    'legendary': 4.0
+  };
+  
+  baseEnergy = Math.floor(baseEnergy * (rarityMultipliers[rarity] || 1.0));
+  
+  // 분자 이름에 따른 특별 보너스
+  if (card.name) {
+    const name = card.name.toLowerCase();
+    if (name.includes('dna') || name.includes('rna')) baseEnergy += 5; // 생체 분자
+    if (name.includes('protein') || name.includes('enzyme')) baseEnergy += 4; // 단백질
+    if (name.includes('crystal') || name.includes('diamond')) baseEnergy += 3; // 결정
+    if (name.includes('explosive') || name.includes('bomb')) baseEnergy += 2; // 폭발성
+  }
+  
+  return Math.max(3, baseEnergy); // 최소 3 에너지 보장
 }
 
 // Get count of specific element in hand
