@@ -28,6 +28,20 @@ app.use(express.static('.', {
       res.setHeader('Content-Type', 'text/css; charset=utf-8');
     } else if (path.endsWith('.json')) {
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    } else if (path.endsWith('.ico')) {
+      res.setHeader('Content-Type', 'image/x-icon');
+    } else if (path.endsWith('.png')) {
+      res.setHeader('Content-Type', 'image/png');
+    } else if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+      res.setHeader('Content-Type', 'image/jpeg');
+    } else if (path.endsWith('.gif')) {
+      res.setHeader('Content-Type', 'image/gif');
+    } else if (path.endsWith('.svg')) {
+      res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+    } else if (path.endsWith('.webp')) {
+      res.setHeader('Content-Type', 'image/webp');
+    } else if (path.endsWith('.avif')) {
+      res.setHeader('Content-Type', 'image/avif');
     }
   }
 }));
@@ -577,6 +591,37 @@ app.get('/', (req, res) => {
 app.get('/src/js/*', (req, res) => {
   const filePath = path.join(__dirname, req.path);
   res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.sendFile(filePath);
+});
+
+// JSON 파일들을 위한 특별한 라우트
+app.get('/src/data/*', (req, res) => {
+  const filePath = path.join(__dirname, req.path);
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.sendFile(filePath);
+});
+
+// 이미지 파일들을 위한 특별한 라우트
+app.get('/src/images/*', (req, res) => {
+  const filePath = path.join(__dirname, req.path);
+  const ext = path.extname(filePath).toLowerCase();
+  
+  if (ext === '.png') {
+    res.setHeader('Content-Type', 'image/png');
+  } else if (ext === '.jpg' || ext === '.jpeg') {
+    res.setHeader('Content-Type', 'image/jpeg');
+  } else if (ext === '.gif') {
+    res.setHeader('Content-Type', 'image/gif');
+  } else if (ext === '.svg') {
+    res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+  } else if (ext === '.webp') {
+    res.setHeader('Content-Type', 'image/webp');
+  } else if (ext === '.avif') {
+    res.setHeader('Content-Type', 'image/avif');
+  }
+  
   res.sendFile(filePath);
 });
 
