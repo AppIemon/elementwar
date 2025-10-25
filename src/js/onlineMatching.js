@@ -48,6 +48,9 @@ class OnlineMatching {
     } else if (window.location.hostname.includes('vercel.app')) {
       // Vercel 배포 환경
       return `https://${window.location.hostname}`;
+    } else if (window.location.hostname.includes('github.io')) {
+      // GitHub Pages에서는 온라인 기능 비활성화
+      return null;
     } else if (window.location.protocol === 'https:') {
       return `https://${window.location.hostname}`;
     } else {
@@ -134,13 +137,19 @@ class OnlineMatching {
   hideMatchingModal() {
     this.matchingModal.style.display = 'none';
     // 온라인 게임이 시작된 경우 매칭 취소하지 않음
-    if (!this.isOnline) {
+    if (!this.isOnline && this.isMatching) {
       this.cancelMatching();
     }
   }
 
   async startMatching() {
     try {
+      // API URL이 없으면 온라인 기능 비활성화
+      if (!this.apiBaseUrl) {
+        this.showMatchingError('온라인 대전은 로컬 서버에서만 사용할 수 있습니다.');
+        return;
+      }
+
       this.isMatching = true;
       this.playerName = `플레이어_${Math.floor(Math.random() * 10000)}`;
       
@@ -196,7 +205,7 @@ class OnlineMatching {
     } finally {
       this.isMatching = false;
       this.stopMatchingPolling(); // 매칭 폴링 중지
-      this.hideMatchingModal();
+      // hideMatchingModal은 호출하지 않음 (무한 재귀 방지)
     }
   }
 
