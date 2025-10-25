@@ -33,7 +33,9 @@ var gameState = {
     difficultyMultiplier: 1.0, // 난이도 배수
     turnGrowthIncrement: 0.05, // 턴마다 증가하는 성장률
     maxGrowthRate: 2.5 // 최대 성장률
-  }
+  },
+  // 컴퓨터 별 관리 시스템
+  computerStarManagement: null
 };
 
 // 카드 스탯 데이터 로드 함수 (elements.json과 molecules.json 사용)
@@ -1249,6 +1251,12 @@ function updateTurnIndicator() {
     isOnline: onlineGameState.isOnline
   });
   
+  // 온라인 모드에서는 updateOnlineTurnUI가 처리하므로 여기서는 건드리지 않음
+  if (onlineGameState.isOnline) {
+    console.log("updateTurnIndicator: 온라인 모드에서는 updateOnlineTurnUI가 처리합니다.");
+    return;
+  }
+  
   const resultMessage = document.getElementById('result-message');
   if (!resultMessage) {
       console.error("updateTurnIndicator: Result message element not found!");
@@ -1260,15 +1268,9 @@ function updateTurnIndicator() {
     resultMessage.className = 'text-center text-xl font-bold h-12 text-blue-400';
     console.log("updateTurnIndicator: 플레이어 차례로 설정됨");
   } else {
-    // 온라인 모드인지 확인하여 적절한 메시지 표시
-    if (onlineGameState.isOnline) {
-      resultMessage.textContent = `${gameState.turnCount}턴: 상대방 차례`;
-      console.log("updateTurnIndicator: 상대방 차례로 설정됨 (온라인)");
-    } else {
-      resultMessage.textContent = `${gameState.turnCount}턴: 컴퓨터 차례`;
-      console.log("updateTurnIndicator: 컴퓨터 차례로 설정됨 (오프라인)");
-    }
+    resultMessage.textContent = `${gameState.turnCount}턴: 컴퓨터 차례`;
     resultMessage.className = 'text-center text-xl font-bold h-12 text-red-400';
+    console.log("updateTurnIndicator: 컴퓨터 차례로 설정됨 (오프라인)");
   }
   console.log("updateTurnIndicator: Turn message updated to:", resultMessage.textContent);
 }
@@ -1679,6 +1681,14 @@ function findAvailableLane(side) {
 
 // 통일된 카드 뽑기 함수 (손패에 추가)
 function drawCards(side) {
+    // 온라인 모드에서 자신의 턴이 아닐 때 뽑기 방지
+    if (onlineGameState.isOnline && side === 'player') {
+        if (window.onlineMatching && window.onlineMatching.currentPlayerId !== window.onlineMatching.playerId) {
+            showMessage('자신의 차례가 아닙니다. 상대방의 차례를 기다려주세요.', 'warning');
+            return;
+        }
+    }
+    
     // 뽑기 횟수 제한 해제됨
     
     const cost = getCurrentDrawCost();
@@ -1908,16 +1918,76 @@ function drawCardsWithoutAnimation(side) {
 // --- End Placeholders ---
 
 async function endTurn() {
-  if (!gameState.isPlayerTurn) return;
+  console.log('endTurn 함수 호출됨', {
+    isPlayerTurn: gameState.isPlayerTurn,
+    isOnline: onlineGameState.isOnline,
+    onlineMatching: !!window.onlineMatching
+  });
+  
+  if (!gameState.isPlayerTurn) {
+    console.log('턴 종료 실패: 플레이어 턴이 아님');
+    return;
+  }
 
   // 온라인 게임인 경우
   if (onlineGameState.isOnline) {
     console.log('온라인 게임: 턴 종료 신호 전송');
+    console.log('온라인 상태 확인:', {
+      onlineGameState: onlineGameState,
+      windowOnlineMatching: !!window.onlineMatching,
+      roomId: window.onlineMatching?.roomId,
+      playerId: window.onlineMatching?.playerId
+    });
+
+    // 현재 턴인 플레이어인지 확인
+    if (window.onlineMatching && window.onlineMatching.currentPlayerId) {
+      const isMyTurn = window.onlineMatching.currentPlayerId === window.onlineMatching.playerId;
+      if (!isMyTurn) {
+        console.log('턴 종료 실패: 현재 턴이 아님', {
+          currentPlayerId: window.onlineMatching.currentPlayerId,
+          myPlayerId: window.onlineMatching.playerId
+        });
+        showMessage('현재 턴이 아닙니다. 상대방의 차례입니다.', 'warning');
+        return;
+      }
+    }
     
     // 온라인 게임에서도 핵융합 자동화 체크 실행
-    if (typeof window.fusionUI !== 'undefined' && window.fusionUI.checkAutomation) {
+    if (gameState.fusionSystem) {
       console.log('온라인 게임: 핵융합 자동화 체크 실행');
-      window.fusionUI.checkAutomation();
+      
+      // 손패를 기반으로 재료 인벤토리 동기화
+      gameState.fusionSystem.syncMaterialsFromHand();
+      
+      // 자동 압축 체크
+      if (gameState.fusionSystem.autoCompress) {
+        const compressResults = gameState.fusionSystem.checkAutoCompress();
+        if (compressResults && compressResults.length > 0) {
+          showMessage(`자동 압축: ${compressResults.length}개 원소 압축됨`, 'info');
+          // UI 업데이트
+          if (window.fusionUI && typeof window.fusionUI.updateFusionDisplay === 'function') {
+            window.fusionUI.updateFusionDisplay();
+          }
+          if (window.renderPlayerHand) {
+            window.renderPlayerHand();
+          }
+        }
+      }
+      
+      // 최대 융합 실행 (온라인에서도 가능하도록)
+      if (gameState.fusionSystem.performMaxFusion) {
+        const maxFusionResult = gameState.fusionSystem.performMaxFusion();
+        if (maxFusionResult.success && maxFusionResult.successCount > 0) {
+          showMessage(maxFusionResult.message, 'success');
+          // UI 업데이트
+          if (window.fusionUI && typeof window.fusionUI.updateFusionDisplay === 'function') {
+            window.fusionUI.updateFusionDisplay();
+          }
+          if (window.renderPlayerHand) {
+            window.renderPlayerHand();
+          }
+        }
+      }
     }
     
     // 별 관리 시스템 턴 처리
@@ -1930,7 +2000,22 @@ async function endTurn() {
     
     // Express API를 통해 턴 종료 신호 전송 (서버에서 공격 처리)
     if (window.onlineMatching) {
-      const result = await window.onlineMatching.endTurn(gameState, battlefield);
+      console.log('onlineMatching.endTurn 호출 시작');
+      
+      // fusionSystem 상태를 gameState에 포함
+      const gameStateWithFusion = { ...gameState };
+      if (gameState.fusionSystem) {
+        gameStateWithFusion.fusionSystem = gameState.fusionSystem.saveState();
+      }
+      
+      console.log('턴 종료 데이터:', {
+        roomId: window.onlineMatching.roomId,
+        playerId: window.onlineMatching.playerId,
+        gameState: gameStateWithFusion,
+        battlefield: battlefield
+      });
+      
+      const result = await window.onlineMatching.endTurn(gameStateWithFusion, battlefield);
       
       if (result.error) {
         showMessage(result.error, 'error');
@@ -1954,13 +2039,12 @@ async function endTurn() {
         if (result.turnProcessed) {
           console.log('턴이 진행되었습니다.');
           showMessage('턴이 진행되었습니다!', 'success');
-          // 턴 표시 업데이트
-          updateTurnIndicator();
         } else {
           console.log('상대방을 기다리는 중...');
           showMessage('턴을 종료했습니다. 상대방을 기다리는 중...', 'info');
         }
         
+        // 온라인 모드에서는 updateOnlineTurnUI만 호출
         updateOnlineTurnUI();
       }
     }
@@ -2064,6 +2148,31 @@ async function computerTurn() {
       }
     }
 
+    // 컴퓨터 별 관리 시스템 처리
+    if (window.starManagement) {
+      const computerStarManagement = window.computerStarManagement || new StarManagement();
+      window.computerStarManagement = computerStarManagement;
+      gameState.computerStarManagement = computerStarManagement;
+      
+      // 컴퓨터 별 관리 시스템 턴 처리
+      const supernovas = computerStarManagement.processTurn();
+      if (supernovas > 0) {
+        console.log(`컴퓨터: ${supernovas}개의 초신성이 발생했습니다!`);
+      }
+      
+      // 컴퓨터 별 성장 로직 (원소 사용 시)
+      if (computerStarManagement.starSystemActive) {
+        // 컴퓨터가 사용한 원소들로 별 성장
+        const usedElements = getComputerUsedElements();
+        usedElements.forEach(({ symbol, amount }) => {
+          computerStarManagement.growStarWithElements(symbol, amount);
+        });
+        
+        // 컴퓨터 초신성 뽑기 사용 로직
+        performComputerSupernovaGacha(computerStarManagement);
+      }
+    }
+
     // 컴퓨터 별 사용 로직
     if (window.starCurrency && window.starCurrency.getStarCount('computer') > 0) {
       const computerStars = window.starCurrency.getStarCount('computer');
@@ -2141,6 +2250,62 @@ async function computerTurn() {
     // 게임이 활성화되어 있지 않아도 턴을 제대로 종료해야 함
     console.log("--- Computer Turn End ---");
     updateUI();
+  }
+}
+
+// 컴퓨터가 사용한 원소들 추적
+function getComputerUsedElements() {
+  const usedElements = [];
+  
+  // 컴퓨터가 배치한 카드들에서 원소 추출
+  gameState.computerHand.forEach(card => {
+    if (card && card.element && !card.isSynthesis) {
+      usedElements.push({
+        symbol: card.element.symbol,
+        amount: 1
+      });
+    }
+  });
+  
+  // 컴퓨터가 핵융합에 사용한 원소들 (추정)
+  if (gameState.fusionSystem && gameState.fusionSystem.materials) {
+    Object.entries(gameState.fusionSystem.materials).forEach(([symbol, count]) => {
+      if (count > 0) {
+        usedElements.push({
+          symbol: symbol,
+          amount: Math.floor(count * 0.1) // 10% 정도 사용한다고 가정
+        });
+      }
+    });
+  }
+  
+  return usedElements;
+}
+
+// 컴퓨터 초신성 뽑기 실행
+function performComputerSupernovaGacha(computerStarManagement) {
+  if (!computerStarManagement.starSystemActive || computerStarManagement.stars < 1) {
+    return;
+  }
+  
+  // 사용 가능한 초신성 뽑기들 필터링
+  const availableGachas = computerStarManagement.supernovaGachas.filter(gacha => 
+    computerStarManagement.unlockedSupernovaGachas.includes(gacha.id) &&
+    computerStarManagement.stars >= gacha.cost
+  );
+  
+  if (availableGachas.length === 0) {
+    return;
+  }
+  
+  // 20% 확률로 초신성 뽑기 사용
+  if (Math.random() < 0.2) {
+    const randomGacha = availableGachas[Math.floor(Math.random() * availableGachas.length)];
+    
+    if (computerStarManagement.performSupernovaGacha(randomGacha.id)) {
+      showMessage(`컴퓨터가 ${randomGacha.name} 뽑기를 사용했습니다!`, 'info');
+      console.log(`Computer used ${randomGacha.name} gacha`);
+    }
   }
 }
 
@@ -2661,6 +2826,13 @@ function resetGame() {
   gameState.drawCount = 0; // Reset draw count
   gameState.energy = 100; // 초기 에너지 제공
 
+  // fusionSystem 초기화 확인
+  if (!gameState.fusionSystem && window.fusionSystem) {
+    console.log('resetGame: fusionSystem 초기화 중...');
+    gameState.fusionSystem = window.fusionSystem;
+    console.log('fusionSystem이 gameState에 연결되었습니다.');
+  }
+
   // 별 재화 시스템 리셋
   if (window.starCurrency) {
     window.starCurrency.playerStars = 0;
@@ -3063,6 +3235,13 @@ function setOnlineMode(isOnline, roomId = '', opponentName = '') {
   // 전역 변수 업데이트
   window.onlineGameState = onlineGameState;
   
+  // fusionSystem 초기화 확인
+  if (isOnline && !gameState.fusionSystem && window.fusionSystem) {
+    console.log('온라인 모드: fusionSystem 초기화 중...');
+    gameState.fusionSystem = window.fusionSystem;
+    console.log('fusionSystem이 gameState에 연결되었습니다.');
+  }
+  
   // 온라인 모드인 경우 게임 상태 동기화 확인
   if (isOnline && roomId) {
     console.log('온라인 모드: 게임 상태 동기화 확인 중...');
@@ -3146,39 +3325,45 @@ function updateOnlineModeUI() {
   console.log('=== 온라인 모드 UI 업데이트 완료 ===');
 }
 
-// 온라인 턴 UI 업데이트 - 서로 기다리는 상황 방지
-function updateOnlineTurnUI() {
+// 온라인 턴 UI 업데이트 - 현재 턴인 플레이어만 턴 종료 가능
+function updateOnlineTurnUI(isMyTurn = null) {
+  // 온라인 모드가 아니면 실행하지 않음
+  if (!onlineGameState.isOnline) {
+    console.log("updateOnlineTurnUI: 온라인 모드가 아니므로 실행하지 않습니다.");
+    return;
+  }
+  
   const endTurnBtn = document.getElementById('end-turn-btn');
   const resultMessage = document.getElementById('result-message');
   
-  if (onlineGameState.isOnline) {
-    // 턴 상태를 단순화하여 서로 기다리는 상황 방지
-    if (onlineGameState.playerTurnEnded && onlineGameState.waitingForOpponent) {
-      // 플레이어가 턴을 종료했고 상대방을 기다리는 중
-      if (endTurnBtn) {
-        endTurnBtn.textContent = '상대방 대기 중...';
-        endTurnBtn.disabled = true;
-      }
-      if (resultMessage) {
-        resultMessage.textContent = `${gameState.turnCount}턴: 상대방 턴 종료 대기 중`;
-        resultMessage.className = 'text-center text-xl font-bold h-12 text-yellow-400';
-      }
-    } else {
-      // 일반적인 플레이어 턴 (상대방 턴 종료 상태 무시)
-      if (endTurnBtn) {
-        endTurnBtn.textContent = '턴 종료';
-        endTurnBtn.disabled = false;
-        endTurnBtn.onclick = endTurn;
-      }
-      if (resultMessage) {
-        if (gameState.isPlayerTurn) {
-          resultMessage.textContent = `${gameState.turnCount}턴: 플레이어 차례`;
-          resultMessage.className = 'text-center text-xl font-bold h-12 text-blue-400';
-        } else {
-          resultMessage.textContent = `${gameState.turnCount}턴: 상대방 차례`;
-          resultMessage.className = 'text-center text-xl font-bold h-12 text-red-400';
-        }
-      }
+  // isMyTurn이 제공되지 않으면 기존 로직 사용 (하위 호환성)
+  if (isMyTurn === null) {
+    isMyTurn = gameState.isPlayerTurn;
+  }
+  
+  console.log("updateOnlineTurnUI: 온라인 턴 UI 업데이트", { isMyTurn, turnCount: gameState.turnCount });
+  
+  if (isMyTurn) {
+    // 내 차례 - 턴 종료 가능
+    if (endTurnBtn) {
+      endTurnBtn.textContent = '턴 종료';
+      endTurnBtn.disabled = false;
+      endTurnBtn.onclick = endTurn;
+    }
+    if (resultMessage) {
+      resultMessage.textContent = `${gameState.turnCount}턴: 내 차례`;
+      resultMessage.className = 'text-center text-xl font-bold h-12 text-green-400';
+    }
+  } else {
+    // 상대방 차례 - 턴 종료 불가
+    if (endTurnBtn) {
+      endTurnBtn.textContent = '상대방 차례';
+      endTurnBtn.disabled = true;
+      endTurnBtn.onclick = null;
+    }
+    if (resultMessage) {
+      resultMessage.textContent = `${gameState.turnCount}턴: 상대방 차례`;
+      resultMessage.className = 'text-center text-xl font-bold h-12 text-red-400';
     }
   }
 }
@@ -3221,6 +3406,27 @@ function updateOnlineGameState(newGameState) {
   
   Object.assign(gameState, newGameState);
   
+  // fusionSystem 상태 업데이트
+  if (newGameState.fusionSystem && gameState.fusionSystem) {
+    console.log('fusionSystem 상태 동기화 중...');
+    gameState.fusionSystem.loadState(newGameState.fusionSystem);
+    console.log('fusionSystem 상태 동기화 완료');
+  }
+  
+  // 별 관리 시스템 상태 업데이트
+  if (newGameState.starManagement && window.starManagement) {
+    console.log('별 관리 시스템 상태 동기화 중...');
+    window.starManagement.loadData(newGameState.starManagement);
+    console.log('별 관리 시스템 상태 동기화 완료');
+  }
+
+  // 컴퓨터 별 관리 시스템 상태 업데이트
+  if (newGameState.computerStarManagement && window.starManagement) {
+    console.log('컴퓨터 별 관리 시스템 상태 동기화 중...');
+    window.starManagement.loadComputerData(newGameState.computerStarManagement);
+    console.log('컴퓨터 별 관리 시스템 상태 동기화 완료');
+  }
+  
   // 손패가 비어있거나 서버에서 전송되지 않은 경우 로컬 손패 유지
   if (!newGameState.playerHand || newGameState.playerHand.length === 0) {
     gameState.playerHand = currentPlayerHand;
@@ -3246,18 +3452,22 @@ function updateOnlineGameState(newGameState) {
     console.log('핵융합 시스템 에너지 동기화:', gameState.energy);
   }
   
-  // 온라인 모드에서 초기 카드가 없으면 생성
+  // 온라인 모드에서 초기 카드가 없으면 생성 (중복 방지)
+  // app.js의 giveInitialCardsAndCoins()에서 이미 초기 카드를 제공하므로 여기서는 제거
+  // 단, 서버에서 손패가 완전히 비어있는 경우에만 폴백으로 생성
   if (gameState.elementsData && gameState.elementsData.length > 0) {
     if (!gameState.playerHand || gameState.playerHand.length === 0) {
-      console.log('온라인 모드: 초기 수소 카드 생성');
+      console.log('온라인 모드: 서버에서 손패가 비어있음 - 폴백 수소 카드 생성');
       const hydrogenElement = gameState.elementsData.find(e => e.symbol === 'H');
       if (hydrogenElement) {
         for (let i = 0; i < 3; i++) {
           const hCard = new ElementCard(hydrogenElement, hydrogenElement.baseHp, hydrogenElement.baseAtk);
           addCardToHand(hCard, 'player');
         }
-        console.log('온라인 모드: 초기 수소 카드 3개 생성 완료');
+        console.log('온라인 모드: 폴백 수소 카드 3개 생성 완료');
       }
+    } else {
+      console.log('온라인 모드: 손패가 이미 존재함 - 중복 생성 방지');
     }
   }
   
@@ -3290,6 +3500,11 @@ function updateOnlineGameState(newGameState) {
   // 온라인 턴 UI 업데이트
   if (typeof updateOnlineTurnUI === 'function') {
     updateOnlineTurnUI();
+  }
+  
+  // 온라인 모드 UI 업데이트 (상대방 이름, 버튼 상태 등)
+  if (typeof updateOnlineModeUI === 'function') {
+    updateOnlineModeUI();
   }
   
   console.log('게임 상태 동기화 완료');
@@ -3355,6 +3570,14 @@ function syncBattlefield(newBattlefield) {
     let processedBattlefield = newBattlefield;
     if (window.onlineGameState?.isOnline) {
       console.log('온라인 게임: 서버에서 플레이어 관점으로 변환된 데이터 사용');
+      
+      // 카드 객체 복원
+      if (processedBattlefield.lanes) {
+        processedBattlefield.lanes.forEach(lane => {
+          if (lane.player) lane.player = window.restoreCardFromServer(lane.player);
+          if (lane.computer) lane.computer = window.restoreCardFromServer(lane.computer);
+        });
+      }
     }
     
     // 전장 상태 업데이트 - 깊은 복사로 안전하게 동기화

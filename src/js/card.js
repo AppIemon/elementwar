@@ -6,12 +6,21 @@ class ElementCard {
     this.originalMaxHp = hp; // Store original max HP for coin reward
     this.atk = atk;
     this.maxAtk = atk; // Consider adding originalMaxAtk if needed
-    this.id = Math.random().toString(36).substring(2, 9);
+    
+    // 카드 ID 생성 통일 (crypto.randomUUID 우선, 폴백으로 Math.random)
+    try {
+      this.id = crypto.randomUUID();
+    } catch (error) {
+      this.id = `card_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    }
+    
     this.effects = [];
     this.armor = 0;
     this.lastDamageTurn = 0;
     this.upgradeLevel = 0;
-    this.owner = null; // Track owner ('player' or 'computer')
+    this.owner = null; // 실제 소유자 (변경되지 않음)
+    this.displaySide = null; // 화면 표시 위치 (플레이어 관점에 따라 변경)
+    this.isOpponentCard = false; // 상대방 카드 여부 (플레이어 관점에 따라 설정)
 
     this.rarity = (element && element.rarity) || 'common';
 
@@ -399,13 +408,27 @@ function createCardElement(card, isInHand = true) {
     backgroundStyle = 'synthesis-card';
   }
 
-  // 온라인 대전에서 상대방 카드인지 미리 확인
+  // 온라인 대전에서 상대방 카드인지 확인 (실제 플레이어 ID 기준)
   let isOpponentCard = false;
   if (window.onlineGameState?.isOnline && !isInHand) {
-    // 온라인 대전에서는 computer 슬롯의 카드가 상대방 플레이어의 카드
-    if (card.owner === 'computer' || card.isOpponentCard === true) {
-      isOpponentCard = true;
-      console.log('온라인 대전 상대방 카드 감지:', card.name, 'owner:', card.owner, 'isOpponentCard:', card.isOpponentCard);
+    // 실제 플레이어 ID를 기준으로 상대방 카드 판별
+    if (window.onlineMatching && window.onlineMatching.playerId) {
+      const currentPlayerId = window.onlineMatching.playerId;
+      const cardPlayerId = card.actualPlayerId;
+      
+      if (cardPlayerId && cardPlayerId !== currentPlayerId) {
+        isOpponentCard = true;
+        console.log('온라인 대전 상대방 카드 감지:', card.name, '내 ID:', currentPlayerId, '카드 소유자 ID:', cardPlayerId);
+      } else {
+        isOpponentCard = false;
+        console.log('온라인 대전 내 카드 감지:', card.name, '내 ID:', currentPlayerId, '카드 소유자 ID:', cardPlayerId);
+      }
+    } else {
+      // 폴백: 기존 isOpponentCard 속성 사용
+      isOpponentCard = card.isOpponentCard === true;
+      if (isOpponentCard) {
+        console.log('온라인 대전 상대방 카드 감지 (폴백):', card.name, 'owner:', card.owner, 'isOpponentCard:', card.isOpponentCard);
+      }
     }
   }
 
@@ -413,10 +436,10 @@ function createCardElement(card, isInHand = true) {
   cardElement.setAttribute('data-card-id', card.id);
   cardElement.id = card.id;
   
-  // 온라인 대전에서 상대방 카드는 반전 표시
+  // 온라인 대전에서 상대방 카드 표시 (색깔 바꾸기와 뒤집기 제거)
   if (isOpponentCard) {
-    cardElement.style.transform = 'scaleX(-1)';
-    cardElement.style.filter = 'hue-rotate(180deg)';
+    // 상대방 카드임을 표시하는 속성만 추가 (시각적 효과 제거)
+    cardElement.setAttribute('data-opponent-card', 'true');
   }
   
   // 세로 반전 적용 (isFlipped 속성이 있는 경우)
@@ -443,20 +466,18 @@ function createCardElement(card, isInHand = true) {
   let ownerText = '';
   let ownerClass = '';
   
-  if (card.owner === 'player') {
+  if (isOpponentCard) {
+    // 상대방 카드 (온라인 대전)
+    ownerText = '상대방';
+    ownerClass = 'text-red-300';
+  } else if (card.owner === 'player') {
+    // 내 카드
     ownerText = '플레이어';
     ownerClass = 'text-blue-300';
-  } else if (card.owner === 'computer') {
-    // 온라인 대전과 오프라인 게임 구분
-    if (window.onlineGameState?.isOnline) {
-      // 온라인 대전에서는 computer 슬롯이 상대방 플레이어
-      ownerText = '상대방';
-      ownerClass = 'text-red-300';
-    } else {
-      // 오프라인 게임에서는 computer가 AI
-      ownerText = '컴퓨터';
-      ownerClass = 'text-red-300';
-    }
+  } else if (card.owner === 'computer' && !window.onlineGameState?.isOnline) {
+    // 오프라인 게임의 AI 카드
+    ownerText = '컴퓨터';
+    ownerClass = 'text-red-300';
   }
 
   cardElement.innerHTML = `
@@ -752,14 +773,54 @@ function showCardDetail(card) {
     ${effectsHtml}
     ${upgradeHtml}
     ${synthesisHtml}
+    
+    ${!isSynth && element.number ? `
+    <div class="mt-4 bg-purple-900 bg-opacity-50 p-3 rounded-lg">
+      <h4 class="font-bold text-purple-400 mb-2">🌟 별 성장 기여도</h4>
+      <div class="text-sm text-gray-300">
+        ${getStarGrowthContribution(element.symbol)}
+      </div>
+      <button id="use-for-star-growth" class="mt-2 w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded text-sm">
+        별 성장에 사용하기
+      </button>
+    </div>` : ''}
   `;
 
   modal.classList.remove('hidden');
+  
+  // 별 성장 버튼 이벤트 리스너 추가
+  const starGrowthBtn = document.getElementById('use-for-star-growth');
+  if (starGrowthBtn && !isSynth && element.number) {
+    starGrowthBtn.addEventListener('click', () => {
+      if (window.starManagement) {
+        const expGained = window.starManagement.growStarWithElements(element.symbol, 1);
+        if (expGained > 0) {
+          showMessage(`🌟 ${element.symbol} 원소로 별이 성장했습니다! (+${expGained} 경험치)`, 'star');
+          modal.classList.add('hidden');
+        }
+      } else {
+        showMessage('별 관리 시스템을 사용할 수 없습니다.', 'error');
+      }
+    });
+  }
 }
 
 function hideCardDetailModal() {
   const modal = document.getElementById('card-detail-modal');
   modal.classList.add('hidden');
+}
+
+// 별 성장 기여도 정보 반환
+function getStarGrowthContribution(elementSymbol) {
+  if (['Li', 'Be', 'Na', 'Mg', 'Al'].includes(elementSymbol)) {
+    return `🌱 경금속류 - +1 경험치`;
+  } else if (['Si', 'P', 'S', 'Ca'].includes(elementSymbol)) {
+    return `⚙️ 중금속류 - +5 경험치`;
+  } else if (['Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe'].includes(elementSymbol)) {
+    return `💣 철족 금속류 - +30 경험치`;
+  } else {
+    return `일반 원소 - 별 성장에 기여하지 않음`;
+  }
 }
 
 function showCardUpgradeModal(card, laneIndex, side) {
@@ -891,5 +952,35 @@ function calculateUpgradeCost(card) {
   return Math.floor(baseCost * Math.pow(effectiveMultiplier + level * 0.15, level + 1));
 }
 
+// 서버에서 받은 카드 객체를 ElementCard 인스턴스로 복원하는 함수
+function restoreCardFromServer(cardData) {
+  if (!cardData) return null;
+  
+  // 이미 ElementCard 인스턴스인 경우 그대로 반환
+  if (cardData instanceof ElementCard) {
+    return cardData;
+  }
+  
+  // 일반 객체인 경우 ElementCard 인스턴스로 변환
+  const element = cardData.element || {};
+  const card = new ElementCard(element, cardData.hp || 0, cardData.atk || 0);
+  
+  // 모든 속성 복사
+  Object.keys(cardData).forEach(key => {
+    if (key !== 'id' && cardData[key] !== undefined) {
+      card[key] = cardData[key];
+    }
+  });
+  
+  // ID는 새로 생성된 것을 유지하거나 기존 ID 사용
+  if (cardData.id) {
+    card.id = cardData.id;
+  }
+  
+  console.log(`카드 복원 완료: ${card.name} (ID: ${card.id})`);
+  return card;
+}
+
 // 전역 함수로 노출
 window.calculateUpgradeStats = calculateUpgradeStats;
+window.restoreCardFromServer = restoreCardFromServer;

@@ -146,12 +146,8 @@ const handleDrop = event => {
         // 전장에 카드 배치
         const idx = parseInt(laneSlot.id.split('-')[1],10);
         
-        // 디버깅을 위한 로그 추가
-        console.log('handleDrop: Searching for card with ID:', draggedCardData.id);
-        console.log('handleDrop: Current playerHand:', gameState.playerHand);
-        console.log('handleDrop: PlayerHand length:', gameState.playerHand ? gameState.playerHand.length : 'undefined');
-        
-        const card = gameState.playerHand.find(c=>c.id===draggedCardData.id);
+        // 카드 찾기 (ID 기반)
+        const card = gameState.playerHand.find(c => c.id === draggedCardData.id);
         console.log('handleDrop: Placing card on battlefield, lane:', idx, 'card:', card);
         
         if (card) {
@@ -160,13 +156,23 @@ const handleDrop = event => {
             console.error('handleDrop: Card not found in player hand:', draggedCardData.id);
             console.error('handleDrop: Available card IDs:', gameState.playerHand.map(c => c.id));
             
-            // 폴백: 첫 번째 카드 사용 (임시 해결책)
-            if (gameState.playerHand && gameState.playerHand.length > 0) {
-                console.log('handleDrop: Using first available card as fallback');
-                const fallbackCard = gameState.playerHand[0];
-                placeCardOnBattlefield(fallbackCard, idx, 'player');
-            } else {
-                console.error('handleDrop: No cards available in player hand');
+            // 사용자에게 오류 메시지 표시
+            if (window.showMessage) {
+                window.showMessage('카드를 찾을 수 없습니다. 다시 시도해주세요.', 'error');
+            }
+        }
+    } else if (laneSlot && draggedCardData.origin === 'battlefield') {
+        // 전장에서 전장으로 이동
+        const idx = parseInt(laneSlot.id.split('-')[1],10);
+        const originLane = battlefield.lanes[draggedCardData.originLaneIndex];
+        const card = originLane && originLane[draggedCardData.originSide];
+        
+        if (card) {
+            placeCardOnBattlefield(card, idx, 'player');
+        } else {
+            console.error('handleDrop: Card not found in battlefield');
+            if (window.showMessage) {
+                window.showMessage('카드를 찾을 수 없습니다.', 'error');
             }
         }
     } else {

@@ -686,6 +686,7 @@ class FusionUI {
         }
         // window.fusionSystem을 gameState에 연결
         gameState.fusionSystem = window.fusionSystem;
+        console.log('window.fusionSystem을 gameState에 연결했습니다.');
       }
 
       // 입력 검증
@@ -1130,6 +1131,7 @@ class FusionUI {
         }
         // window.fusionSystem을 gameState에 연결
         gameState.fusionSystem = window.fusionSystem;
+        console.log('window.fusionSystem을 gameState에 연결했습니다.');
       }
 
       if (!moleculeId || typeof moleculeId !== 'string') {
@@ -1490,6 +1492,11 @@ class FusionUI {
     // 재료 소모 및 에너지 사용
     for (const [symbol, needed] of Object.entries(elementCounts)) {
       materials[symbol] = Math.max(0, (materials[symbol] || 0) - needed);
+      
+      // 별 성장도 증가 (원소 사용으로 인한)
+      if (window.starManagement) {
+        window.starManagement.growStarWithElements(symbol, needed);
+      }
     }
     gameState.fusionSystem.energy -= energyCost;
 

@@ -479,14 +479,12 @@ class FusionSystem {
         return { success: false, message: `⚡ 에너지가 부족합니다! (필요: ${energyCost}, 보유: ${currentEnergy})\nH를 에너지로 변환하거나 기다려서 에너지를 회복하세요.` };
     }
 
-    // 수소 최소 갯수 체크 - 수소가 있으면 사용하지만, 없어도 핵융합 가능
+    // 수소는 선택적으로 사용 (있으면 사용, 없어도 핵융합 가능)
     const hydrogenCount = this.materials.H || 0;
     const minHydrogen = Math.max(1, Math.floor(targetZ / 5));
-    const hasEnoughHydrogen = hydrogenCount >= minHydrogen;
     
-    // 수소가 부족해도 핵융합은 가능하지만, 수소가 있으면 사용
-    if (hasEnoughHydrogen) {
-      // 수소가 충분하면 수소도 소모
+    // 수소가 있으면 사용하지만, 없어도 핵융합은 계속 진행
+    if (hydrogenCount >= minHydrogen) {
       this.materials.H = Math.max(0, hydrogenCount - minHydrogen);
     }
 
@@ -494,6 +492,11 @@ class FusionSystem {
 
     // 융합/초신성 실행 - 재료 소모
     this.materials[previousElement] = Math.max(0, currentMaterials - requiredMaterials);
+    
+    // 별 성장도 증가 (원소 사용으로 인한)
+    if (window.starManagement) {
+      window.starManagement.growStarWithElements(previousElement, requiredMaterials);
+    }
     
     // 에너지 소모
     gameState.energy = Math.max(0, currentEnergy - energyCost);
@@ -618,7 +621,7 @@ class FusionSystem {
         // 재료 소모
         this.materials[previousElement] = Math.max(0, (this.materials[previousElement] || 0) - requiredMaterials);
         
-        // 수소 소모 (있는 경우에만)
+        // 수소는 선택적으로 사용 (있으면 사용, 없어도 핵융합 가능)
         const hydrogenCount = this.materials.H || 0;
         const minHydrogen = Math.max(1, Math.floor(targetZ / 5));
         if (hydrogenCount >= minHydrogen) {
@@ -769,7 +772,6 @@ class FusionSystem {
       } else {
         // 디버깅을 위한 상세 정보 수집
         const debugInfo = [];
-        const hydrogenCount = this.materials.H || 0;
         const currentEnergy = Number.isFinite(Number(this.energy)) ? Number(this.energy) : 0;
         
         const elementSymbols = Array.isArray(gameState.elementsData)
@@ -785,22 +787,18 @@ class FusionSystem {
           const available = this.materials[symbol] || 0;
           const required = this.calculateRequiredMaterials(nextZ);
           const energyCost = this.calculateEnergyCost(nextZ);
-          const minHydrogen = Math.max(1, Math.floor(nextZ / 5));
           
-          debugInfo.push(`${symbol}(${currentZ}): 보유=${available}, 필요=${required}, 에너지=${energyCost}, 수소필요=${minHydrogen}`);
+          debugInfo.push(`${symbol}(${currentZ}): 보유=${available}, 필요=${required}, 에너지=${energyCost}`);
         }
         
         let message = '융합 가능한 원소가 없습니다.\n';
-        if (hydrogenCount === 0) {
-          message += '수소가 없습니다. H 카드를 뽑아주세요.';
-        } else if (currentEnergy === 0) {
+        if (currentEnergy === 0) {
           message += '에너지가 없습니다. H를 에너지로 변환하세요.';
         } else {
           message += '재료나 에너지가 부족합니다.';
         }
         
         console.log('[performMaxFusion] 디버그 정보:', {
-          hydrogenCount,
           currentEnergy,
           materials: this.materials,
           debugInfo
@@ -841,16 +839,10 @@ class FusionSystem {
       const energyCost = this.calculateEnergyCost(nextZ);
       const currentEnergy = Number.isFinite(Number(this.energy)) ? Number(this.energy) : 0;
 
-      // 수소 최소 갯수 체크 (Z=5 이상일 때만 수소 필요)
-      const hydrogenCount = this.materials.H || 0;
-      const minHydrogen = nextZ >= 5 ? Math.max(1, Math.floor(nextZ / 5)) : 0;
+      console.log(`[findFusionTargets] ${symbol}(${currentZ}) -> ${this.getSymbolByNumber(nextZ)}(${nextZ}): 보유=${available}, 필요=${required}, 에너지=${energyCost}, 현재에너지=${currentEnergy}`);
       
-      console.log(`[findFusionTargets] ${symbol}(${currentZ}) -> ${this.getSymbolByNumber(nextZ)}(${nextZ}): 보유=${available}, 필요=${required}, 에너지=${energyCost}, 현재에너지=${currentEnergy}, 수소필요=${minHydrogen}, 수소보유=${hydrogenCount}`);
-      
-      // 핵융합 가능한 조건 확인 (에너지, 재료, 수소 모두 확인)
-      if (available >= required && 
-          currentEnergy >= energyCost && 
-          hydrogenCount >= minHydrogen) {
+      // 핵융합 가능한 조건 확인 (에너지, 재료만 확인 - 수소는 선택사항)
+      if (available >= required && currentEnergy >= energyCost) {
         
         // 가능한 융합 횟수 계산 (재료 제한)
         const maxFusions = Math.floor(available / required);
@@ -858,12 +850,9 @@ class FusionSystem {
         // 에너지 제한 고려
         const energyLimitedFusions = Math.floor(currentEnergy / energyCost);
         
-        // 수소 제한 고려
-        const hydrogenLimitedFusions = Math.floor(hydrogenCount / minHydrogen);
+        const actualFusions = Math.min(maxFusions, energyLimitedFusions);
         
-        const actualFusions = Math.min(maxFusions, energyLimitedFusions, hydrogenLimitedFusions);
-        
-        console.log(`[findFusionTargets] ${symbol} -> ${this.getSymbolByNumber(nextZ)}: 실제융합가능=${actualFusions} (재료제한=${maxFusions}, 에너지제한=${energyLimitedFusions}, 수소제한=${hydrogenLimitedFusions})`);
+        console.log(`[findFusionTargets] ${symbol} -> ${this.getSymbolByNumber(nextZ)}: 실제융합가능=${actualFusions} (재료제한=${maxFusions}, 에너지제한=${energyLimitedFusions})`);
         
         if (actualFusions > 0) {
           // 융합 대상 추가 (각 원소당 최대 1개씩만)
@@ -871,7 +860,7 @@ class FusionSystem {
           console.log(`[findFusionTargets] 융합 대상 추가: ${this.getSymbolByNumber(nextZ)}(${nextZ})`);
         }
       } else {
-        console.log(`[findFusionTargets] ${symbol} -> ${this.getSymbolByNumber(nextZ)}: 융합 불가 (재료=${available >= required}, 에너지=${currentEnergy >= energyCost}, 수소=${hydrogenCount >= minHydrogen})`);
+        console.log(`[findFusionTargets] ${symbol} -> ${this.getSymbolByNumber(nextZ)}: 융합 불가 (재료=${available >= required}, 에너지=${currentEnergy >= energyCost})`);
       }
     }
 

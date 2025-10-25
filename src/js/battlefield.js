@@ -205,6 +205,14 @@ function resetBattlefield() {
 }
 
 function placeCardOnBattlefield(card, laneIndex, side) {
+  // 온라인 모드에서 자신의 턴이 아닐 때 카드 배치 방지
+  if (onlineGameState.isOnline && side === 'player') {
+    if (window.onlineMatching && window.onlineMatching.currentPlayerId !== window.onlineMatching.playerId) {
+      showMessage('자신의 차례가 아닙니다. 상대방의 차례를 기다려주세요.', 'warning');
+      return false;
+    }
+  }
+
   const lane = battlefield.lanes[laneIndex];
 
   if (!lane) return false;
@@ -237,6 +245,10 @@ function placeCardOnBattlefield(card, laneIndex, side) {
     if (window.onlineGameState?.isOnline && card && typeof card === 'object') {
       // 온라인 대전에서는 computer 슬롯이 상대방 플레이어
       card.isOpponentCard = (side === 'computer');
+      // 실제 플레이어 ID 정보 추가
+      if (window.onlineMatching && window.onlineMatching.playerId) {
+        card.actualPlayerId = window.onlineMatching.playerId;
+      }
     }
     // 분자 카드와 원소 카드를 구분하여 안전하게 속성 설정
     if (card.type === 'molecule' && card.elements && card.elements.length > 1) {
@@ -258,27 +270,21 @@ function placeCardOnBattlefield(card, laneIndex, side) {
     
     battlefield.lanes[laneIndex][side] = card;
 
-    // 카드 제거 로직 (드래그 앤 드롭 또는 온라인 게임)
-    if (draggedCardData && draggedCardData.id === card.id) {
-      if (draggedCardData.origin === 'hand' && isPlayerAction) {
-        removeCardFromHand(card.id, 'player');
-      } else if (draggedCardData.origin === 'battlefield') {
+    // 카드 제거 로직 통합 (한 곳에서 처리)
+    if (isPlayerAction) {
+      // 플레이어 액션인 경우 손패에서 카드 제거
+      if (draggedCardData && draggedCardData.origin === 'battlefield') {
+        // 전장에서 전장으로 이동하는 경우
         const originLane = battlefield.lanes[draggedCardData.originLaneIndex];
         if (originLane && originLane[draggedCardData.originSide] && originLane[draggedCardData.originSide].id === card.id) {
           originLane[draggedCardData.originSide] = null;
-          console.log(`[placeCard] Cleared original battlefield slot: Lane ${draggedCardData.originLaneIndex}, Side ${draggedCardData.originSide}`);
+          console.log(`[placeCard] 전장에서 전장으로 이동: Lane ${draggedCardData.originLaneIndex}, Side ${draggedCardData.originSide}`);
         }
+      } else {
+        // 손패에서 전장으로 이동하는 경우
+        removeCardFromHand(card.id, 'player');
+        console.log(`[placeCard] 손패에서 카드 제거 - ${card.name}`);
       }
-    } else if (window.onlineGameState?.isOnline && side === 'player') {
-      // 온라인 게임에서 플레이어 카드 배치 시 손패에서 제거
-      removeCardFromHand(card.id, 'player');
-      console.log(`[placeCard] 온라인 게임: 손패에서 카드 제거 - ${card.name}`);
-    } else if (isPlayerAction && !draggedCardData) {
-      // 일반적인 플레이어 액션 (드래그 앤 드롭이 아닌 경우)
-      removeCardFromHand(card.id, 'player');
-      console.log(`[placeCard] 일반 플레이어 액션: 손패에서 카드 제거 - ${card.name}`);
-    } else {
-      console.log("[placeCard] Card source wasn't drag-and-drop, removal skipped in this block.");
     }
 
     // 카드 제한 제거됨
@@ -288,21 +294,37 @@ function placeCardOnBattlefield(card, laneIndex, side) {
     
     // 온라인 게임인 경우 상대방에게 카드 배치 알림
     if (window.onlineGameState?.isOnline && window.onlineMatching) {
+      // 온라인 게임에서는 항상 player 슬롯(아래쪽)에 배치
+      const onlineSide = 'player';
       console.log('카드 배치 이벤트 전송:', {
         card: card.name,
         laneIndex: laneIndex,
-        side: side
+        side: onlineSide,
+        originalSide: side
       });
       
-      // 온라인 게임에서는 서버 응답을 기다린 후 렌더링
-      window.onlineMatching.placeCard(card, laneIndex, side).then(result => {
+      // 온라인 게임에서는 서버 응답을 기다린 후 렌더링 (중복 렌더링 제거)
+      window.onlineMatching.placeCard(card, laneIndex, onlineSide).then(result => {
         if (result.success) {
           console.log('카드 배치 완료:', result);
           // 서버에서 받은 전장 상태로 업데이트
           if (result.battlefield) {
+            // 카드 객체 복원
+            result.battlefield.lanes.forEach(lane => {
+              if (lane.player) lane.player = window.restoreCardFromServer(lane.player);
+              if (lane.computer) lane.computer = window.restoreCardFromServer(lane.computer);
+            });
+            
             // battlefield 객체의 속성을 업데이트
             battlefield.lanes = result.battlefield.lanes || battlefield.lanes;
             battlefield.bases = result.battlefield.bases || battlefield.bases;
+            
+            // 서버 응답 후 손패에서 카드 제거 (온라인 게임에서)
+            if (side === 'player') {
+              removeCardFromHand(card.id, 'player');
+              console.log(`[placeCard] 온라인 게임: 서버 응답 후 손패에서 카드 제거 - ${card.name}`);
+            }
+            
             renderBattlefield();
           }
         } else {
@@ -342,8 +364,6 @@ function placeCardOnBattlefield(card, laneIndex, side) {
     if (typeof window.onCardPlaced === 'function') {
       window.onCardPlaced(card, laneIndex, side);
     }
-    
-    renderBattlefield();
 
     return true;
   } else if (currentCard === null) {
@@ -354,6 +374,10 @@ function placeCardOnBattlefield(card, laneIndex, side) {
     if (window.onlineGameState?.isOnline && card && typeof card === 'object') {
       // 온라인 대전에서는 computer 슬롯이 상대방 플레이어
       card.isOpponentCard = (side === 'computer');
+      // 실제 플레이어 ID 정보 추가
+      if (window.onlineMatching && window.onlineMatching.playerId) {
+        card.actualPlayerId = window.onlineMatching.playerId;
+      }
     }
 
     // 분자 카드와 원소 카드를 구분하여 안전하게 속성 설정
@@ -383,21 +407,37 @@ function placeCardOnBattlefield(card, laneIndex, side) {
     
     // 온라인 게임인 경우 상대방에게 카드 배치 알림
     if (window.onlineGameState?.isOnline && window.onlineMatching) {
+      // 온라인 게임에서는 항상 player 슬롯(아래쪽)에 배치
+      const onlineSide = 'player';
       console.log('카드 배치 이벤트 전송:', {
         card: card.name,
         laneIndex: laneIndex,
-        side: side
+        side: onlineSide,
+        originalSide: side
       });
       
-      // 온라인 게임에서는 서버 응답을 기다린 후 렌더링
-      window.onlineMatching.placeCard(card, laneIndex, side).then(result => {
+      // 온라인 게임에서는 서버 응답을 기다린 후 렌더링 (중복 렌더링 제거)
+      window.onlineMatching.placeCard(card, laneIndex, onlineSide).then(result => {
         if (result.success) {
           console.log('카드 배치 완료:', result);
           // 서버에서 받은 전장 상태로 업데이트
           if (result.battlefield) {
+            // 카드 객체 복원
+            result.battlefield.lanes.forEach(lane => {
+              if (lane.player) lane.player = window.restoreCardFromServer(lane.player);
+              if (lane.computer) lane.computer = window.restoreCardFromServer(lane.computer);
+            });
+            
             // battlefield 객체의 속성을 업데이트
             battlefield.lanes = result.battlefield.lanes || battlefield.lanes;
             battlefield.bases = result.battlefield.bases || battlefield.bases;
+            
+            // 서버 응답 후 손패에서 카드 제거 (온라인 게임에서)
+            if (side === 'player') {
+              removeCardFromHand(card.id, 'player');
+              console.log(`[placeCard] 온라인 게임: 서버 응답 후 손패에서 카드 제거 - ${card.name}`);
+            }
+            
             renderBattlefield();
           }
         } else {
@@ -437,27 +477,13 @@ function placeCardOnBattlefield(card, laneIndex, side) {
     if (typeof window.onCardPlaced === 'function') {
       window.onCardPlaced(card, laneIndex, side);
     }
-    
-    renderBattlefield();
 
     // 원자 구조 배경 업데이트
     if (window.elementColorSystem && card.element && card.element.number) {
       window.elementColorSystem.updateAtomicBackground(card.element.number);
     }
 
-    if (draggedCardData && draggedCardData.origin === 'hand' && isPlayerAction && draggedCardData.id === card.id) {                                             
-      removeCardFromHand(card.id, 'player');
-    } else if (draggedCardData && draggedCardData.origin === 'battlefield' && draggedCardData.id === card.id) {                                                 
-      const originLane = battlefield.lanes[draggedCardData.originLaneIndex];
-      if (originLane && originLane[draggedCardData.originSide] && originLane[draggedCardData.originSide].id === card.id) {                                      
-        originLane[draggedCardData.originSide] = null;
-        console.log(`[placeCard] Moved card: Cleared original battlefield slot: Lane ${draggedCardData.originLaneIndex}, Side ${draggedCardData.originSide}`);  
-      }
-    } else if (isPlayerAction && !draggedCardData) {
-      // 일반적인 플레이어 액션 (드래그 앤 드롭이 아닌 경우)
-      removeCardFromHand(card.id, 'player');
-      console.log(`[placeCard] 일반 플레이어 액션: 손패에서 카드 제거 - ${card.name}`);
-    }
+    // 중복된 카드 제거 로직 제거됨 (위에서 이미 처리됨)
 
     return true;
   }
@@ -603,16 +629,13 @@ function renderBattlefield() {
       computerSlot.appendChild(cardElement);
       console.log(`컴퓨터 카드 렌더링: ${lane.computer.name} (라인 ${index})`);
       
+      // 상대방 카드는 애니메이션 없이 바로 최종 상태로 표시
+      cardElement.style.opacity = '1';
+      cardElement.style.transform = cardElement.style.transform || '';
+      
       // 반감기 UI 업데이트
       if (window.halfLifeSystem && lane.computer.halflife && !lane.computer.halflife.isStable) {
         window.halfLifeSystem.updateHalfLifeUI(cardElement, lane.computer);
-      }
-      
-      // 카드 등장 애니메이션 (컴퓨터 카드)
-      if (window.playCardEntranceAnimation) {
-        setTimeout(() => {
-          window.playCardEntranceAnimation(cardElement, true);
-        }, (index * 100) + 200); // 플레이어 카드보다 200ms 늦게
       }
     }
   });

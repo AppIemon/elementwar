@@ -826,6 +826,21 @@ function showCardDetail(card) {
   }
 
 
+  // Add star growth section for element cards
+  if (card.element && !card.isSynthesis) {
+    detailHtml += `
+      <div class="mt-4 bg-purple-900 bg-opacity-50 p-3 rounded-lg">
+        <h4 class="font-bold text-purple-400 mb-2">🌟 별 성장 기여도</h4>
+        <div class="text-sm text-gray-300 mb-3">
+          ${getStarGrowthContribution(card.element.symbol)}
+        </div>
+        <button id="use-for-star-growth" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded text-sm">
+          별 성장에 사용하기
+        </button>
+      </div>
+    `;
+  }
+
   content.innerHTML = detailHtml;
   modal.classList.remove('hidden');
   
@@ -858,6 +873,22 @@ function showCardDetail(card) {
     });
   }
   
+  // Add event listener for star growth button
+  const starGrowthBtn = document.getElementById('use-for-star-growth');
+  if (starGrowthBtn && card.element && !card.isSynthesis) {
+    starGrowthBtn.addEventListener('click', () => {
+      if (window.starManagement) {
+        const expGained = window.starManagement.growStarWithElements(card.element.symbol, 1);
+        if (expGained > 0) {
+          showMessage(`🌟 ${card.element.symbol} 원소로 별이 성장했습니다! (+${expGained} 경험치)`, 'star');
+          modal.classList.add('hidden');
+        }
+      } else {
+        showMessage('별 관리 시스템을 사용할 수 없습니다.', 'error');
+      }
+    });
+  }
+
   // Add event listener for fuel button
   const fuelBtn = document.getElementById('use-as-fuel');
   if (fuelBtn) {
@@ -1035,6 +1066,13 @@ function updateTurnDisplay() {
     updateTurnIndicator();
   } else {
     console.warn("updateTurnIndicator function not found, using fallback");
+    
+    // 온라인 모드에서는 updateOnlineTurnUI가 처리하므로 여기서는 건드리지 않음
+    if (window.onlineGameState && window.onlineGameState.isOnline) {
+      console.log("updateTurnDisplay: 온라인 모드에서는 updateOnlineTurnUI가 처리합니다.");
+      return;
+    }
+    
     const resultMessage = document.getElementById('result-message');
     if (resultMessage) {
       if (gameState.isPlayerTurn) {
@@ -1042,12 +1080,7 @@ function updateTurnDisplay() {
         resultMessage.textContent = `${gameState.turnCount}턴: 플레이어 차례 (남은 카드: ${cardsRemaining}/${gameState.maxCardsPerTurn})`;
         resultMessage.className = 'text-center text-xl font-bold h-12 text-blue-400';
       } else {
-        // 온라인 모드인지 확인하여 적절한 메시지 표시
-        if (window.onlineGameState && window.onlineGameState.isOnline) {
-          resultMessage.textContent = `${gameState.turnCount}턴: 상대방 차례`;
-        } else {
-          resultMessage.textContent = `${gameState.turnCount}턴: 컴퓨터 차례`;
-        }
+        resultMessage.textContent = `${gameState.turnCount}턴: 컴퓨터 차례`;
         resultMessage.className = 'text-center text-xl font-bold h-12 text-red-400';
       }
     }

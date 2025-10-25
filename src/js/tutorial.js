@@ -254,12 +254,17 @@ class TutorialSystem {
     this.showStep();
     this.overlay.classList.remove('hidden');
     
-    // 게임 상태 저장
+    // 게임 상태 저장 (더 정확한 상태 추적을 위해)
     this.savedGameState = {
       isPlayerTurn: gameState.isPlayerTurn,
       playerHand: [...gameState.playerHand],
-      computerHand: [...gameState.computerHand]
+      computerHand: [...gameState.computerHand],
+      initialDrawCount: gameState.drawCount || 0,
+      initialPlayerCoins: gameState.playerCoins || 0,
+      initialComputerCoins: gameState.computerCoins || 0
     };
+    
+    console.log('Tutorial: Starting tutorial with saved state:', this.savedGameState);
     
     // 튜토리얼용 초기 상태 설정
     this.setupTutorialGame();
@@ -348,8 +353,28 @@ class TutorialSystem {
     }
     
     // 이전/다음 버튼 상태 업데이트
-    document.getElementById('tutorial-prev').disabled = this.currentStep === 0;
-    document.getElementById('tutorial-next').textContent = this.currentStep === this.steps.length - 1 ? '완료' : '다음 →';
+    const prevBtn = document.getElementById('tutorial-prev');
+    const nextBtn = document.getElementById('tutorial-next');
+    
+    if (prevBtn) {
+      prevBtn.disabled = this.currentStep === 0;
+    }
+    
+    if (nextBtn) {
+      if (step.waitForAction) {
+        // 액션 대기 중일 때는 다음 버튼 비활성화
+        nextBtn.disabled = true;
+        nextBtn.textContent = '액션 필요';
+        nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        nextBtn.classList.remove('hover:bg-blue-700');
+      } else {
+        // 액션 대기가 필요하지 않을 때는 정상 활성화
+        nextBtn.disabled = false;
+        nextBtn.textContent = this.currentStep === this.steps.length - 1 ? '완료' : '다음 →';
+        nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        nextBtn.classList.add('hover:bg-blue-700');
+      }
+    }
     
     // 타겟 하이라이트
     if (step.target && step.highlight) {
@@ -375,7 +400,10 @@ class TutorialSystem {
     this.clearHighlight();
     
     const target = document.querySelector(selector);
-    if (!target) return;
+    if (!target) {
+      console.warn(`Tutorial: Target element not found: ${selector}`);
+      return;
+    }
     
     const rect = target.getBoundingClientRect();
     const highlight = document.getElementById('tutorial-highlight');
@@ -397,15 +425,36 @@ class TutorialSystem {
     
     // 클릭 이벤트를 하이라이트된 요소로 전달
     const clickHandler = (e) => {
+      e.preventDefault();
       e.stopPropagation();
+      
+      console.log(`Tutorial: Click detected on highlighted element: ${selector}`);
+      
       // 실제 타겟 요소로 클릭 이벤트 전달
       const clickEvent = new MouseEvent('click', {
         bubbles: true,
         cancelable: true,
         clientX: e.clientX,
-        clientY: e.clientY
+        clientY: e.clientY,
+        button: e.button,
+        buttons: e.buttons
       });
-      target.dispatchEvent(clickEvent);
+      
+      // 타겟 요소가 실제로 클릭 가능한지 확인
+      if (target && typeof target.click === 'function') {
+        target.click();
+      } else {
+        target.dispatchEvent(clickEvent);
+      }
+      
+      // 액션 대기 중인 경우 자동으로 다음 단계로 진행하지 않도록 수정
+      const currentStep = this.steps[this.currentStep];
+      if (currentStep && currentStep.waitForAction) {
+        // 잠시 후 액션 완료 확인
+        setTimeout(() => {
+          this.checkActionCompletion(currentStep);
+        }, 500);
+      }
     };
     
     // 기존 이벤트 리스너 제거 후 새로 추가
@@ -521,19 +570,19 @@ class TutorialSystem {
       // 단계별 맞춤 툴팁 메시지
       switch(step.id) {
         case 'card-info':
-          tooltipMessage = '🔍 카드를 클릭하여 원소의 상세 정보를 확인해보세요!';
+          tooltipMessage = '🔍 하이라이트된 카드를 클릭하여 원소의 상세 정보를 확인해보세요!\n\n💡 카드 상세 정보가 열리면 자동으로 다음 단계로 진행됩니다.';
           break;
         case 'card-drawing':
-          tooltipMessage = '📦 카드 팩 버튼을 클릭하여 새로운 원소를 발견해보세요!';
+          tooltipMessage = '📦 카드 뽑기 버튼을 클릭하여 새로운 원소를 발견해보세요!\n\n💡 카드를 뽑으면 자동으로 다음 단계로 진행됩니다.';
           break;
         case 'card-placement':
-          tooltipMessage = '🎯 카드를 드래그하여 전장의 빈 슬롯에 배치해보세요!';
+          tooltipMessage = '🎯 카드를 드래그하여 전장의 빈 슬롯에 배치해보세요!\n\n💡 카드가 전장에 배치되면 자동으로 다음 단계로 진행됩니다.';
           break;
         case 'turn-end':
-          tooltipMessage = '⏭️ 턴 종료 버튼을 클릭하여 전투를 시작해보세요!';
+          tooltipMessage = '⏭️ 턴 종료 버튼을 클릭하여 전투를 시작해보세요!\n\n💡 턴이 종료되면 자동으로 다음 단계로 진행됩니다.';
           break;
         default:
-          tooltipMessage = '💡 하이라이트된 요소를 클릭해보세요!';
+          tooltipMessage = '💡 하이라이트된 요소를 클릭해보세요!\n\n💡 액션을 완료하면 자동으로 다음 단계로 진행됩니다.';
       }
       
       tooltipText.textContent = tooltipMessage;
@@ -553,13 +602,20 @@ class TutorialSystem {
     const currentStep = this.steps[this.currentStep];
     
     // 액션 대기 중인 경우 체크
-    if (currentStep.waitForAction) {
+    if (currentStep && currentStep.waitForAction) {
+      console.log(`Tutorial: Action required for step: ${currentStep.id}`);
       this.checkActionCompletion(currentStep);
       return;
     }
     
-    this.currentStep++;
-    this.showStep();
+    // 액션 대기가 필요하지 않은 경우에만 다음 단계로 진행
+    if (this.currentStep < this.steps.length - 1) {
+      this.currentStep++;
+      this.showStep();
+    } else {
+      // 마지막 단계인 경우 완료
+      this.completeTutorial();
+    }
   }
 
   previousStep() {
@@ -570,12 +626,15 @@ class TutorialSystem {
   }
 
   checkActionCompletion(step) {
+    console.log(`Tutorial: Checking action completion for step: ${step.id}`);
+    
     // 특정 액션이 완료되었는지 확인
     switch (step.id) {
       case 'card-info':
         // 카드 클릭 완료 확인 (카드 상세 모달이 열렸는지 확인)
         const cardModal = document.getElementById('card-detail-modal');
         if (cardModal && !cardModal.classList.contains('hidden')) {
+          console.log('Tutorial: Card detail modal opened, proceeding to next step');
           // 모달이 열렸으면 자동으로 닫고 다음 단계로
           setTimeout(() => {
             if (typeof window.hideCardDetail === 'function') {
@@ -587,16 +646,20 @@ class TutorialSystem {
             this.showStep();
           }, 2000); // 2초 후 자동으로 다음 단계로
         } else {
+          console.log('Tutorial: Card detail modal not opened yet');
           showMessage('카드를 클릭하여 상세 정보를 확인해주세요!', 'warning');
         }
         break;
         
       case 'card-drawing':
-        // 카드 뽑기 완료 확인
-        if (gameState.drawCount > 0) {
+        // 카드 뽑기 완료 확인 - drawCount가 증가했는지 확인
+        const initialDrawCount = this.savedGameState?.initialDrawCount || 0;
+        if (gameState.drawCount > initialDrawCount) {
+          console.log('Tutorial: Card drawing completed, proceeding to next step');
           this.currentStep++;
           this.showStep();
         } else {
+          console.log('Tutorial: Card drawing not completed yet');
           showMessage('카드 뽑기 버튼을 클릭해주세요!', 'warning');
         }
         break;
@@ -605,9 +668,11 @@ class TutorialSystem {
         // 카드 배치 완료 확인
         const hasCardOnField = battlefield.lanes.some(lane => lane.player);
         if (hasCardOnField) {
+          console.log('Tutorial: Card placement completed, proceeding to next step');
           this.currentStep++;
           this.showStep();
         } else {
+          console.log('Tutorial: Card placement not completed yet');
           showMessage('카드를 전장에 배치해주세요!', 'warning');
         }
         break;
@@ -615,14 +680,17 @@ class TutorialSystem {
       case 'turn-end':
         // 턴 종료 완료 확인
         if (!gameState.isPlayerTurn) {
+          console.log('Tutorial: Turn end completed, proceeding to next step');
           this.currentStep++;
           this.showStep();
         } else {
+          console.log('Tutorial: Turn end not completed yet');
           showMessage('턴 종료 버튼을 클릭해주세요!', 'warning');
         }
         break;
         
       default:
+        console.log('Tutorial: No specific action required, proceeding to next step');
         this.currentStep++;
         this.showStep();
     }
@@ -636,11 +704,29 @@ class TutorialSystem {
     // 클릭 차단 레이어에서 클릭 이벤트 차단
     const blockingLayer = document.getElementById('tutorial-blocking-layer');
     if (blockingLayer) {
-      blockingLayer.addEventListener('click', (e) => {
+      // 기존 이벤트 리스너 제거
+      blockingLayer.removeEventListener('click', this.blockingClickHandler);
+      
+      // 새로운 클릭 핸들러 정의
+      this.blockingClickHandler = (e) => {
+        // 하이라이트 영역을 클릭한 경우는 차단하지 않음
+        const highlight = document.getElementById('tutorial-highlight');
+        if (highlight && highlight.contains(e.target)) {
+          return; // 하이라이트 영역 클릭은 허용
+        }
+        
+        // 튜토리얼 도커 영역을 클릭한 경우도 차단하지 않음
+        const docker = document.getElementById('tutorial-docker');
+        if (docker && docker.contains(e.target)) {
+          return; // 도커 영역 클릭은 허용
+        }
+        
         e.preventDefault();
         e.stopPropagation();
         showMessage('튜토리얼을 진행해주세요!', 'warning');
-      });
+      };
+      
+      blockingLayer.addEventListener('click', this.blockingClickHandler);
     }
   }
 
@@ -649,6 +735,13 @@ class TutorialSystem {
     this.overlay.classList.add('hidden');
     this.clearHighlight();
     this.hideTooltip();
+    
+    // 클릭 차단 이벤트 리스너 제거
+    const blockingLayer = document.getElementById('tutorial-blocking-layer');
+    if (blockingLayer && this.blockingClickHandler) {
+      blockingLayer.removeEventListener('click', this.blockingClickHandler);
+      this.blockingClickHandler = null;
+    }
     
     // 게임 상태 복원
     if (this.savedGameState) {

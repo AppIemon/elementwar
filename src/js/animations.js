@@ -91,27 +91,53 @@ function createShineEffect(element) {
 function playCardAppearAnimation(cardElement) {
   if (!checkAnimeExists()) return;
   
+  // 상대방 카드인지 확인
+  const isOpponentCard = cardElement.getAttribute('data-opponent-card') === 'true' || 
+                        (cardElement.style.transform && cardElement.style.transform.includes('scaleX(-1)'));
+  
   // 초기 상태 설정
   cardElement.style.opacity = '0';
-  cardElement.style.transform = 'scale(0.8) translateY(20px) rotateY(180deg)';
+  if (isOpponentCard) {
+    // 상대방 카드는 뒤집기 애니메이션 없이 등장
+    cardElement.style.transform = 'scale(0.8) translateY(20px) scaleX(-1)';
+  } else {
+    cardElement.style.transform = 'scale(0.8) translateY(20px) rotateY(180deg)';
+  }
   
-  anime({
-    targets: cardElement,
-    opacity: [0, 1],
-    scale: [0.8, 1.1, 1],
-    translateY: [20, -10, 0],
-    rotateY: [180, 0],
-    duration: 250, // 더욱 단축
-    easing: 'easeOutElastic(1, .6)',
-    complete: function() {
-      createShineEffect(cardElement);
-    }
-  });
+  if (isOpponentCard) {
+    // 상대방 카드는 뒤집기 없이 등장 (빛나는 효과도 제거)
+    anime({
+      targets: cardElement,
+      opacity: [0, 1],
+      scale: [0.8, 1.1, 1],
+      translateY: [20, -10, 0],
+      duration: 250, // 더욱 단축
+      easing: 'easeOutElastic(1, .6)'
+    });
+  } else {
+    // 내 카드는 기존 애니메이션
+    anime({
+      targets: cardElement,
+      opacity: [0, 1],
+      scale: [0.8, 1.1, 1],
+      translateY: [20, -10, 0],
+      rotateY: [180, 0],
+      duration: 250, // 더욱 단축
+      easing: 'easeOutElastic(1, .6)',
+      complete: function() {
+        createShineEffect(cardElement);
+      }
+    });
+  }
 }
 
 // 카드 등장 애니메이션 (손패에서 전장으로)
 function playCardEntranceAnimation(cardElement, fromHand = true) {
   if (!checkAnimeExists()) return;
+  
+  // 상대방 카드인지 확인
+  const isOpponentCard = cardElement.getAttribute('data-opponent-card') === 'true' || 
+                        (cardElement.style.transform && cardElement.style.transform.includes('scaleX(-1)'));
   
   if (fromHand) {
     // 손패에서 전장으로 이동하는 애니메이션
@@ -121,33 +147,59 @@ function playCardEntranceAnimation(cardElement, fromHand = true) {
     
     // 초기 상태 설정
     cardElement.style.opacity = '0';
-    cardElement.style.transform = 'scale(0.5) rotateY(90deg)';
+    if (isOpponentCard) {
+      // 상대방 카드는 뒤집기 애니메이션 없이 등장
+      cardElement.style.transform = 'scale(0.5) scaleX(-1)';
+    } else {
+      cardElement.style.transform = 'scale(0.5) rotateY(90deg)';
+    }
     cardElement.style.zIndex = '1000';
     
     // 등장 애니메이션
-    anime({
-      targets: cardElement,
-      opacity: [0, 1],
-      scale: [0.5, 1.2, 1],
-      rotateY: [90, 0],
-      duration: 200, // 더욱 단축
-      easing: 'easeOutElastic(1, .8)',
-      complete: function() {
-        // 빛나는 효과
-        createShineEffect(cardElement);
-        
-        // 파티클 효과
-        createParticleEffect(centerX, centerY, '#3b82f6', 20, 5);
-        
-        // 최종 위치로 정착
-        anime({
-          targets: cardElement,
-          scale: [1, 1.05, 1],
-          duration: 70, // 더욱 단축
-          easing: 'easeOutQuad'
-        });
-      }
-    });
+    if (isOpponentCard) {
+      // 상대방 카드는 뒤집기 없이 등장 (빛나는 효과와 파티클 효과도 제거)
+      anime({
+        targets: cardElement,
+        opacity: [0, 1],
+        scale: [0.5, 1.2, 1],
+        duration: 200, // 더욱 단축
+        easing: 'easeOutElastic(1, .8)',
+        complete: function() {
+          // 최종 위치로 정착 (빛나는 효과와 파티클 효과 제거)
+          anime({
+            targets: cardElement,
+            scale: [1, 1.05, 1],
+            duration: 70, // 더욱 단축
+            easing: 'easeOutQuad'
+          });
+        }
+      });
+    } else {
+      // 내 카드는 기존 애니메이션
+      anime({
+        targets: cardElement,
+        opacity: [0, 1],
+        scale: [0.5, 1.2, 1],
+        rotateY: [90, 0],
+        duration: 200, // 더욱 단축
+        easing: 'easeOutElastic(1, .8)',
+        complete: function() {
+          // 빛나는 효과
+          createShineEffect(cardElement);
+          
+          // 파티클 효과
+          createParticleEffect(centerX, centerY, '#3b82f6', 20, 5);
+          
+          // 최종 위치로 정착
+          anime({
+            targets: cardElement,
+            scale: [1, 1.05, 1],
+            duration: 70, // 더욱 단축
+            easing: 'easeOutQuad'
+          });
+        }
+      });
+    }
   } else {
     // 일반 등장 애니메이션
     playCardAppearAnimation(cardElement);

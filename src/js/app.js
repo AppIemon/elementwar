@@ -161,9 +161,9 @@ function giveInitialCardsAndCoins() {
         console.error("giveInitialCardsAndCoins: addCoins function not found!");
     }
 
-    // 온라인/오프라인 모드 모두에서 초기 카드 제공
-    // 고정된 시작 카드 제공: H 3개
-    if (typeof addCardToHand === 'function') {
+    // 오프라인 모드에서만 초기 카드 제공 (온라인 모드는 서버에서 처리)
+    // 온라인 모드에서는 updateOnlineGameState에서 처리하므로 중복 방지
+    if (!window.onlineGameState?.isOnline && typeof addCardToHand === 'function') {
         // H (수소) 3개
         const hydrogenElement = gameState.elementsData.find(e => e.symbol === 'H');
         if (hydrogenElement) {
@@ -173,8 +173,10 @@ function giveInitialCardsAndCoins() {
             addCardToHand(hCard1, 'player');
             addCardToHand(hCard2, 'player');
             addCardToHand(hCard3, 'player');
-            console.log("온라인/오프라인 모드: 수소 3개 카드 제공 완료");
+            console.log("오프라인 모드: 수소 3개 카드 제공 완료");
         }
+    } else if (window.onlineGameState?.isOnline) {
+        console.log("온라인 모드: 초기 카드는 서버에서 처리됨");
     } else {
         console.error("giveInitialCardsAndCoins: addCardToHand function not found!");
     }

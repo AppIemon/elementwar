@@ -1,14 +1,14 @@
 {
   "version": 2,
   "functions": {
-    "api/game.js": {
+    "api/server.js": {
       "maxDuration": 30
     }
   },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/game.js"
+      "destination": "/api/server.js"
     }
   ]
 }
