@@ -1,5 +1,5 @@
-// Express API 기반 온라인 매칭 시스템
-class OnlineMatching {
+// Socket.IO 기반 온라인 매칭 시스템
+export class OnlineMatching {
   constructor() {
     this.isOnline = false;
     this.roomId = null;
@@ -8,13 +8,13 @@ class OnlineMatching {
     this.isHost = false;
     this.isMatching = false;
     this.playerName = '';
-    this.apiBaseUrl = this.getApiBaseUrl();
+    this.socket = null;
     this.turnTimerInterval = null;
     this.currentPlayerId = null; // 현재 턴인 플레이어 ID
     
     this.initializeElements();
     this.bindEvents();
-    this.initializeApi();
+    this.initializeSocket();
   }
 
   initializeElements() {
@@ -41,16 +41,13 @@ class OnlineMatching {
     this.currentPlayerText = document.getElementById('current-player');
   }
 
-  getApiBaseUrl() {
-    // 환경별 API URL 결정
+  getSocketUrl() {
+    // 환경별 Socket URL 결정
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       return 'http://localhost:3000';
     } else if (window.location.hostname.includes('vercel.app')) {
       // Vercel 배포 환경
       return `https://${window.location.hostname}`;
-    } else if (window.location.hostname.includes('github.io')) {
-      // GitHub Pages에서는 온라인 기능 비활성화
-      return null;
     } else if (window.location.protocol === 'https:') {
       return `https://${window.location.hostname}`;
     } else {
@@ -81,29 +78,127 @@ class OnlineMatching {
     });
   }
 
-  initializeApi() {
-    console.log('API URL:', this.apiBaseUrl);
+  initializeSocket() {
+    console.log('Socket URL:', this.getSocketUrl());
     
-    // API 기반 통신 설정
+    // Socket.IO 클라이언트 초기화
+    this.socket = io(this.getSocketUrl());
     this.playerId = `player_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
     
-    // 연결 상태 확인
-    this.checkConnection();
+    // Socket 이벤트 핸들러 설정
+    this.setupSocketEvents();
   }
 
-  async checkConnection() {
-    try {
-      const response = await fetch(`${this.apiBaseUrl}/api/health`);
-      if (response.ok) {
-        this.updateConnectionStatus(true);
-        // 폴링 시작 (게임 상태 확인용)
-        this.startPolling();
-      } else {
-        this.updateConnectionStatus(false);
-      }
-    } catch (error) {
-      console.error('서버 연결 확인 실패:', error);
+  setupSocketEvents() {
+    // 연결 성공
+    this.socket.on('connect', () => {
+      console.log('Socket 연결됨:', this.socket.id);
+      this.updateConnectionStatus(true);
+    });
+
+    // 연결 해제
+    this.socket.on('disconnect', () => {
+      console.log('Socket 연결 해제됨');
       this.updateConnectionStatus(false);
+    });
+
+    // 매칭 대기 중
+    this.socket.on('matching-waiting', () => {
+      console.log('매칭 대기 중...');
+      this.showMatchingWaiting();
+    });
+
+    // 매칭 완료
+    this.socket.on('match-found', (data) => {
+      console.log('매칭 완료:', data);
+      this.handleMatchFound(data);
+    });
+
+    // 게임 시작
+    this.socket.on('game-start', (data) => {
+      console.log('게임 시작:', data);
+      this.handleGameStart(data);
+    });
+
+    // 턴 변경
+    this.socket.on('turn-changed', (data) => {
+      console.log('턴 변경:', data);
+      this.updateTurnStatus(data.currentTurn, data.turnTimer * 1000);
+    });
+
+    // 턴 타이머 업데이트
+    this.socket.on('turn-timer-update', (data) => {
+      this.updateTurnStatus(this.currentPlayerId, data.timeLeft * 1000);
+    });
+
+    // 게임 액션
+    this.socket.on('game-action', (data) => {
+      console.log('게임 액션 수신:', data);
+      this.handleGameAction(data);
+    });
+
+    // 상대방 연결 해제
+    this.socket.on('opponent-disconnected', () => {
+      console.log('상대방이 연결을 해제했습니다.');
+      this.showMatchingError('상대방이 연결을 해제했습니다.');
+    });
+  }
+
+  handleMatchFound(data) {
+    this.isMatching = false;
+    this.roomId = data.roomId;
+    this.opponentName = data.opponent.name || data.opponent.playerName;
+    this.isHost = data.isFirstPlayer;
+    
+    console.log('매칭 완료 처리:', {
+      roomId: this.roomId,
+      opponentName: this.opponentName,
+      isHost: this.isHost
+    });
+    
+    this.showMatchingFound();
+  }
+
+  handleGameStart(data) {
+    console.log('게임 시작 처리:', data);
+    this.isOnline = true;
+    this.hideMatchingModal();
+    
+    // 게임 초기화
+    if (window.setOnlineMode) {
+      window.setOnlineMode(true, this.roomId, this.opponentName);
+    }
+    
+    if (window.resetGame) {
+      window.resetGame();
+    }
+    
+    // 턴 타이머 시작
+    this.showTurnTimer();
+    this.startTurnTimer();
+  }
+
+  handleGameAction(data) {
+    const { action, payload } = data;
+    
+    switch (action) {
+      case 'card-placed':
+        if (window.handleOpponentCardPlaced) {
+          window.handleOpponentCardPlaced(payload);
+        }
+        break;
+      case 'turn-ended':
+        if (window.handleOpponentTurnEnd) {
+          window.handleOpponentTurnEnd(payload);
+        }
+        break;
+      case 'card-drawn':
+        if (window.handleOpponentCardDrawn) {
+          window.handleOpponentCardDrawn(payload);
+        }
+        break;
+      default:
+        console.log('알 수 없는 게임 액션:', action, payload);
     }
   }
 
@@ -142,71 +237,31 @@ class OnlineMatching {
     }
   }
 
-  async startMatching() {
-    try {
-      // API URL이 없으면 온라인 기능 비활성화
-      if (!this.apiBaseUrl) {
-        this.showMatchingError('온라인 대전은 로컬 서버에서만 사용할 수 있습니다.');
-        return;
-      }
-
-      this.isMatching = true;
-      this.playerName = `플레이어_${Math.floor(Math.random() * 10000)}`;
-      
-      this.showMatchingWaiting();
-      
-      // Express API를 통해 매칭 시작
-      const response = await fetch(`${this.apiBaseUrl}/api/start-matching`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          playerName: this.playerName,
-          playerId: this.playerId
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        if (data.waiting) {
-          // 대기 중
-          this.showMatchingWaiting();
-          this.startMatchingPolling();
-        } else {
-          // 매칭 완료
-          this.handleMatchFound(data);
-        }
-      } else {
-        this.showMatchingError(data.error || '매칭을 시작할 수 없습니다.');
-      }
-    } catch (error) {
-      console.error('매칭 시작 오류:', error);
-      this.showMatchingError('매칭을 시작할 수 없습니다.');
+  startMatching() {
+    if (!this.socket || !this.socket.connected) {
+      this.showMatchingError('서버에 연결되지 않았습니다.');
+      return;
     }
+
+    this.isMatching = true;
+    this.playerName = `플레이어_${Math.floor(Math.random() * 10000)}`;
+    
+    this.showMatchingWaiting();
+    
+    // Socket.IO를 통해 매칭 요청
+    this.socket.emit('request-match', {
+      playerName: this.playerName,
+      playerId: this.playerId
+    });
   }
 
-  async cancelMatching() {
-    try {
-      if (this.isMatching) {
-        await fetch(`${this.apiBaseUrl}/api/cancel-matching`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            playerId: this.playerId
-          })
-        });
-      }
-    } catch (error) {
-      console.error('매칭 취소 오류:', error);
-    } finally {
-      this.isMatching = false;
-      this.stopMatchingPolling(); // 매칭 폴링 중지
-      // hideMatchingModal은 호출하지 않음 (무한 재귀 방지)
+  cancelMatching() {
+    if (this.isMatching && this.socket) {
+      this.socket.emit('cancel-match');
     }
+    
+    this.isMatching = false;
+    this.matchingModal.style.display = 'none';
   }
 
   handleMatchFound(matchData) {
@@ -376,259 +431,11 @@ class OnlineMatching {
     }
   }
 
-  // API 기반 통신 메서드들 (위에서 구현됨)
+  // Socket.IO 기반 통신으로 폴링 불필요
 
-  startMatchingPolling() {
-    // 매칭 대기 중에는 더 자주 확인 (1초마다)
-    this.matchingPollingInterval = setInterval(async () => {
-      if (this.isMatching) {
-        await this.checkMatchingStatus();
-      }
-    }, 1000);
-  }
+  // Socket.IO 이벤트 핸들러에서 처리됨
 
-  async checkMatchingStatus() {
-    try {
-      const response = await fetch(`${this.apiBaseUrl}/api/check-matching`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          playerId: this.playerId
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success && data.matched) {
-        // 매칭 완료
-        this.handleMatchFound({
-          roomId: data.roomId,
-          opponentName: data.opponentName,
-          isHost: data.isHost
-        });
-      }
-    } catch (error) {
-      console.error('매칭 상태 확인 오류:', error);
-    }
-  }
-
-  startPolling() {
-    // 주기적으로 서버 상태 확인 (1초마다로 최적화 - UI 업데이트 개선)
-    this.pollingInterval = setInterval(async () => {
-      if (this.isMatching || this.isOnline) {
-        await this.checkGameStatus();
-      }
-    }, 1000);
-  }
-
-  async checkGameStatus() {
-    try {
-      if (!this.roomId) return;
-      
-      const url = `${this.apiBaseUrl}/api/game-status/${this.roomId}?playerId=${this.playerId}`;
-      console.log('게임 상태 확인 요청:', url);
-      
-      const response = await fetch(url);
-      
-      // 404 에러 처리 - 룸이 존재하지 않음
-      if (response.status === 404) {
-        console.warn('게임 룸이 존재하지 않습니다. 폴링을 중단합니다.');
-        this.stopPolling();
-        this.showMatchingModal('게임 룸이 존재하지 않습니다. 다시 매칭을 시작해주세요.');
-        return;
-      }
-      
-      // 기타 HTTP 에러 처리
-      if (!response.ok) {
-        console.error(`게임 상태 확인 실패: ${response.status} ${response.statusText}`);
-        return;
-      }
-      
-      const data = await response.json();
-      
-      if (data.success && data.room) {
-        let hasChanges = false;
-        
-        // 게임 상태 업데이트
-        if (window.updateOnlineGameState && data.room.gameState) {
-          window.updateOnlineGameState(data.room.gameState);
-          
-          // fusionSystem 동기화 - gameState에 fusionSystem이 없으면 window.fusionSystem을 연결
-          if (window.gameState && data.room.gameState.fusionSystem) {
-            // gameState에 fusionSystem이 없으면 window.fusionSystem을 연결
-            if (!window.gameState.fusionSystem && window.fusionSystem) {
-              window.gameState.fusionSystem = window.fusionSystem;
-              console.log('window.fusionSystem을 gameState에 연결했습니다.');
-            }
-            
-            if (window.gameState.fusionSystem) {
-              window.gameState.fusionSystem.loadState(data.room.gameState.fusionSystem);
-            }
-          }
-          
-          // 별 관리 시스템 동기화
-          if (window.gameState && data.room.gameState.starManagement) {
-            if (window.starManagement) {
-              window.starManagement.loadData(data.room.gameState.starManagement);
-            }
-          }
-
-          // 컴퓨터 별 관리 시스템 동기화
-          if (window.gameState && data.room.gameState.computerStarManagement) {
-            if (window.starManagement) {
-              window.starManagement.loadComputerData(data.room.gameState.computerStarManagement);
-            }
-          }
-          
-          hasChanges = true;
-        }
-
-        // 턴 상태 업데이트
-        if (data.room.currentPlayerId !== undefined) {
-          this.updateTurnStatus(data.room.currentPlayerId, data.room.turnTimeRemaining);
-        }
-
-        // 기지 상태 동기화 (변경사항이 있을 때만)
-        if (data.room.bases && window.battlefield) {
-          const basesChanged = JSON.stringify(window.battlefield.bases) !== JSON.stringify(data.room.bases);
-          if (basesChanged) {
-            console.log('기지 상태 변경 감지:', data.room.bases);
-            window.battlefield.bases = data.room.bases;
-            hasChanges = true;
-          }
-        }
-        
-        // 전장 상태 동기화 (서버에서 이미 플레이어 관점으로 변환됨)
-        if (data.room.battlefield) {
-          // 카드 객체 복원
-          data.room.battlefield.lanes.forEach(lane => {
-            if (lane.player) lane.player = window.restoreCardFromServer(lane.player);
-            if (lane.computer) lane.computer = window.restoreCardFromServer(lane.computer);
-          });
-          
-          // 전장 상태 변경 확인
-          const battlefieldChanged = JSON.stringify(window.battlefield.lanes) !== JSON.stringify(data.room.battlefield.lanes);
-          if (battlefieldChanged) {
-            console.log('전장 상태 변경 감지:', data.room.battlefield);
-          if (window.syncBattlefield) {
-            window.syncBattlefield(data.room.battlefield);
-          } else if (window.renderBattlefield) {
-            // 전역 battlefield 변수 업데이트
-            if (typeof window.battlefield !== 'undefined') {
-              window.battlefield = data.room.battlefield;
-              console.log('플레이어 관점 전장 상태 업데이트 완료');
-            }
-            window.renderBattlefield();
-            }
-            hasChanges = true;
-          }
-        }
-
-        // 플레이어 손패 상태 동기화 (변경사항이 있을 때만)
-        if (data.room.playerHands && window.gameState) {
-            const currentPlayerHand = data.room.playerHands[this.playerId];
-            if (currentPlayerHand) {
-            const handChanged = JSON.stringify(window.gameState.playerHand) !== JSON.stringify(currentPlayerHand);
-            if (handChanged) {
-              console.log('손패 상태 변경 감지:', currentPlayerHand);
-              window.gameState.playerHand = currentPlayerHand;
-              if (window.renderPlayerHand) {
-                window.renderPlayerHand();
-              }
-              hasChanges = true;
-            }
-          }
-        }
-        
-        // 온라인 모드에서는 변경사항과 관계없이 UI 업데이트 실행
-        if (hasChanges) {
-          console.log('게임 상태 변경 감지 - UI 업데이트 실행');
-        } else {
-          console.log('게임 상태 확인 완료 (변경사항 없음)');
-        }
-        
-        // 별 관리 시스템 턴 처리 (온라인 게임에서도)
-        if (window.starManagement) {
-          const supernovas = window.starManagement.processTurn();
-          if (supernovas > 0) {
-            console.log(`온라인 게임: ${supernovas}개의 초신성이 발생했습니다!`);
-          }
-        }
-
-        // 컴퓨터 별 관리 시스템 턴 처리 (온라인 게임에서도)
-        if (window.computerStarManagement) {
-          const computerSupernovas = window.computerStarManagement.processTurn();
-          if (computerSupernovas > 0) {
-            console.log(`온라인 게임 컴퓨터: ${computerSupernovas}개의 초신성이 발생했습니다!`);
-          }
-        }
-
-        // 온라인 모드에서는 항상 UI 업데이트 실행 (뽑기할 때만 업데이트되는 문제 해결)
-        if (window.updateUI) {
-          window.updateUI();
-        }
-      }
-    } catch (error) {
-      console.error('게임 상태 확인 오류:', error);
-      console.error('에러 타입:', error.name);
-      console.error('에러 메시지:', error.message);
-      console.error('API URL:', this.apiBaseUrl);
-      console.error('룸 ID:', this.roomId);
-      console.error('플레이어 ID:', this.playerId);
-      
-      // 네트워크 에러인 경우 폴링 중단
-      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-        console.warn('네트워크 연결 실패. 폴링을 중단합니다.');
-        this.stopPolling();
-        this.showMatchingModal('네트워크 연결에 실패했습니다. 페이지를 새로고침해주세요.');
-      }
-    }
-  }
-
-  stopMatchingPolling() {
-    if (this.matchingPollingInterval) {
-      clearInterval(this.matchingPollingInterval);
-      this.matchingPollingInterval = null;
-    }
-  }
-
-  stopPolling() {
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
-      this.pollingInterval = null;
-    }
-  }
-
-  startOnlineGame(gameData) {
-    this.isOnline = true;
-    this.hideMatchingModal();
-    
-    console.log('온라인 게임 시작 전 상태:', {
-      onlineGameState: window.onlineGameState,
-      isOnline: this.isOnline
-    });
-    
-    // 먼저 온라인 모드로 설정
-    if (window.setOnlineMode) {
-      window.setOnlineMode(true, this.roomId, this.opponentName);
-    }
-    
-    // 그 다음 게임 초기화 (온라인 모드가 설정된 후)
-    if (window.resetGame) {
-      window.resetGame();
-    }
-    
-    console.log('온라인 게임 시작 후 상태:', {
-      onlineGameState: window.onlineGameState,
-      isOnline: this.isOnline
-    });
-  }
-
-  // 이벤트 핸들러들은 checkGameStatus에서 처리됨
-
-  async endTurn(gameState, battlefield) {
+  endTurn(gameState, battlefield) {
     console.log('onlineMatching.endTurn 호출됨', {
       roomId: this.roomId,
       playerId: this.playerId,
@@ -637,139 +444,82 @@ class OnlineMatching {
       battlefield: battlefield
     });
     
-    try {
-      if (!this.roomId) {
-        console.error('턴 종료 실패: 룸 ID가 없습니다.');
-        return { error: '룸 ID가 없습니다.' };
-      }
-
-      // 턴 종료 중복 호출 방지
-      if (this.isEndingTurn) {
-        console.log('턴 종료가 이미 진행 중입니다. 중복 호출 무시.');
-        return { error: '턴 종료가 이미 진행 중입니다.' };
-      }
-
-      this.isEndingTurn = true;
-
-      console.log('턴 종료 신호 전송 중...', {
-        roomId: this.roomId,
-        playerId: this.playerId,
-        turnCount: gameState.turnCount,
-        isPlayerTurn: gameState.isPlayerTurn
-      });
-
-      const response = await fetch(`${this.apiBaseUrl}/api/end-turn`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          roomId: this.roomId,
-          playerId: this.playerId,
-          gameState: gameState,
-          battlefield: battlefield
-        })
-      });
-
-      // HTTP 에러 처리
-      if (!response.ok) {
-        console.error(`턴 종료 실패: ${response.status} ${response.statusText}`);
-        this.isEndingTurn = false;
-        return { error: `서버 오류: ${response.status}` };
-      }
-
-      const data = await response.json();
-      
-      if (data.success) {
-        console.log('턴 종료 신호 전송 완료:', data);
-        
-        // 턴 종료 후 UI 업데이트 (온라인 모드 UI 업데이트 개선)
-        if (window.updateUI) {
-          window.updateUI();
-        }
-        
-        // 서버에서 이미 플레이어 관점으로 변환된 상태를 받음
-        return { 
-          success: true, 
-          gameState: data.gameState,
-          battlefield: data.battlefield,
-          turnProcessed: data.turnProcessed
-        };
-      } else {
-        return { error: data.error || '턴을 종료할 수 없습니다.' };
-      }
-    } catch (error) {
-      console.error('턴 종료 오류:', error);
-      console.error('에러 타입:', error.name);
-      console.error('에러 메시지:', error.message);
-      
-      // 네트워크 에러인 경우 폴링 중단
-      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-        console.warn('네트워크 연결 실패. 폴링을 중단합니다.');
-        this.stopPolling();
-        this.showMatchingModal('네트워크 연결에 실패했습니다. 페이지를 새로고침해주세요.');
-      }
-      
-      return { error: '턴을 종료할 수 없습니다.' };
-    } finally {
-      // 턴 종료 플래그 리셋
-      this.isEndingTurn = false;
+    if (!this.socket || !this.socket.connected) {
+      console.error('Socket 연결이 없습니다.');
+      return { error: '서버에 연결되지 않았습니다.' };
     }
+
+    if (!this.roomId) {
+      console.error('턴 종료 실패: 룸 ID가 없습니다.');
+      return { error: '룸 ID가 없습니다.' };
+    }
+
+    // 턴 종료 중복 호출 방지
+    if (this.isEndingTurn) {
+      console.log('턴 종료가 이미 진행 중입니다. 중복 호출 무시.');
+      return { error: '턴 종료가 이미 진행 중입니다.' };
+    }
+
+    this.isEndingTurn = true;
+
+    console.log('턴 종료 신호 전송 중...', {
+      roomId: this.roomId,
+      playerId: this.playerId,
+      turnCount: gameState.turnCount,
+      isPlayerTurn: gameState.isPlayerTurn
+    });
+
+    // Socket.IO를 통해 턴 종료 신호 전송
+    this.socket.emit('game-action', {
+      action: 'end-turn',
+      payload: {
+        gameState: gameState,
+        battlefield: battlefield
+      }
+    });
+
+    // 턴 종료 플래그 리셋
+    setTimeout(() => {
+      this.isEndingTurn = false;
+    }, 1000);
+
+    return { success: true };
   }
 
-  async placeCard(card, laneIndex, side) {
-    try {
-      if (!this.roomId) {
-        return { error: '룸 ID가 없습니다.' };
-      }
+  placeCard(card, laneIndex, side) {
+    if (!this.socket || !this.socket.connected) {
+      return { error: '서버에 연결되지 않았습니다.' };
+    }
 
-      console.log('카드 배치 신호 전송 중...', {
-        roomId: this.roomId,
-        playerId: this.playerId,
-        card: card,
+    if (!this.roomId) {
+      return { error: '룸 ID가 없습니다.' };
+    }
+
+    console.log('카드 배치 신호 전송 중...', {
+      roomId: this.roomId,
+      playerId: this.playerId,
+      card: card,
+      laneIndex: laneIndex,
+      side: side
+    });
+
+    // 카드 데이터 복사 및 상대방 카드 표시 정보 추가
+    const cardData = { ...card };
+    if (side === 'computer') {
+      cardData.isOpponentCard = true;
+    }
+    
+    // Socket.IO를 통해 카드 배치 신호 전송
+    this.socket.emit('game-action', {
+      action: 'place-card',
+      payload: {
+        card: cardData,
         laneIndex: laneIndex,
         side: side
-      });
-
-      // 카드 데이터 복사 및 상대방 카드 표시 정보 추가
-      const cardData = { ...card };
-      if (side === 'computer') {
-        cardData.isOpponentCard = true;
       }
-      
-      const response = await fetch(`${this.apiBaseUrl}/api/place-card`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          roomId: this.roomId,
-          playerId: this.playerId,
-          card: cardData,
-          laneIndex: laneIndex,
-          side: side
-        })
-      });
+    });
 
-      const data = await response.json();
-      
-      if (data.success) {
-        console.log('카드 배치 신호 전송 완료:', data);
-        
-        // 카드 배치 후 UI 업데이트 (온라인 모드 UI 업데이트 개선)
-        if (window.updateUI) {
-          window.updateUI();
-        }
-        
-        // 서버에서 이미 플레이어 관점으로 변환된 상태를 받음
-        return { success: true, battlefield: data.battlefield };
-      } else {
-        return { error: data.error || '카드를 배치할 수 없습니다.' };
-      }
-    } catch (error) {
-      console.error('카드 배치 오류:', error);
-      return { error: '카드를 배치할 수 없습니다.' };
-    }
+    return { success: true };
   }
 
   // AI 생각 과정 요청은 현재 구현하지 않음
@@ -778,42 +528,30 @@ class OnlineMatching {
   }
 
   // 카드 뽑기 동기화
-  async syncCardDraw(cards) {
-    try {
-      if (!this.roomId) {
-        return { error: '룸 ID가 없습니다.' };
-      }
-
-      console.log('카드 뽑기 동기화 중...', {
-        roomId: this.roomId,
-        playerId: this.playerId,
-        cards: cards.map(c => c.name)
-      });
-
-      const response = await fetch(`${this.apiBaseUrl}/api/draw-cards`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          roomId: this.roomId,
-          playerId: this.playerId,
-          cards: cards
-        })
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        console.log('카드 뽑기 동기화 완료:', data);
-        return { success: true };
-      } else {
-        return { error: data.error || '카드 뽑기 동기화에 실패했습니다.' };
-      }
-    } catch (error) {
-      console.error('카드 뽑기 동기화 오류:', error);
-      return { error: '카드 뽑기 동기화 중 오류가 발생했습니다.' };
+  syncCardDraw(cards) {
+    if (!this.socket || !this.socket.connected) {
+      return { error: '서버에 연결되지 않았습니다.' };
     }
+
+    if (!this.roomId) {
+      return { error: '룸 ID가 없습니다.' };
+    }
+
+    console.log('카드 뽑기 동기화 중...', {
+      roomId: this.roomId,
+      playerId: this.playerId,
+      cards: cards.map(c => c.name)
+    });
+
+    // Socket.IO를 통해 카드 뽑기 동기화
+    this.socket.emit('game-action', {
+      action: 'draw-cards',
+      payload: {
+        cards: cards
+      }
+    });
+
+    return { success: true };
   }
 
   showMatchingWaiting() {
@@ -850,8 +588,10 @@ class OnlineMatching {
     // 턴 타이머 정리
     this.stopTurnTimer();
     
-    // 폴링 중지
-    this.stopPolling();
+    // Socket 연결 해제
+    if (this.socket) {
+      this.socket.disconnect();
+    }
     
     // 게임 종료 처리
     if (window.endOnlineGame) {
@@ -970,34 +710,10 @@ class OnlineMatching {
     }
   }
 
-  // 턴 타이머 시작
+  // 턴 타이머 시작 (Socket.IO 이벤트로 처리됨)
   startTurnTimer() {
-    this.stopTurnTimer(); // 기존 타이머 정리
-    
-    console.log('턴 타이머 시작');
-    
-    this.turnTimerInterval = setInterval(async () => {
-      if (!this.roomId) return;
-      
-      try {
-        const response = await fetch(`${this.apiBaseUrl}/api/turn-time/${this.roomId}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            console.log('턴 시간 업데이트:', {
-              currentPlayerId: data.currentPlayerId,
-              timeRemaining: data.timeRemaining,
-              myPlayerId: this.playerId
-            });
-            this.updateTurnStatus(data.currentPlayerId, data.timeRemaining);
-          }
-        } else {
-          console.error('턴 시간 확인 실패:', response.status, response.statusText);
-        }
-      } catch (error) {
-        console.error('턴 시간 확인 오류:', error);
-      }
-    }, 1000); // 1초마다 업데이트
+    console.log('턴 타이머 시작 - Socket.IO 이벤트로 처리됨');
+    // Socket.IO 이벤트 핸들러에서 자동으로 처리됨
   }
 
   // 턴 타이머 중지
@@ -1029,3 +745,8 @@ class OnlineMatching {
 
 // 전역 인스턴스 생성
 window.onlineMatching = new OnlineMatching();
+
+// 전역 함수로 노출 (기존 코드와의 호환성을 위해)
+window.initOnlineMatching = () => {
+  return window.onlineMatching;
+};

@@ -1,5 +1,5 @@
 // 별 융합 UI 관리 (우주 모달에 통합됨)
-class StarFusionUI {
+export class StarFusionUI {
   constructor() {
     this.starManagementModal = null;
     this.init();

@@ -1,4 +1,4 @@
-class Molecule {
+export class Molecule {
   constructor(id, name, elements, effect) {
     this.id = id;
     this.name = name;
@@ -1176,6 +1176,18 @@ function checkMoleculesDataLoaded() {
   
   return !!(gameState && gameState.moleculesData && gameState.moleculesData.length > 0);
 }
+
+// Export functions for module imports
+export {
+  findPossibleMolecules,
+  checkAutoMoleculeCreation,
+  synthesizeCards,
+  createMoleculeFromElements,
+  createMoleculeFromMultipleElements,
+  createCardFromMolecule,
+  checkMoleculesDataLoaded,
+  getElementByNumber
+};
 
 // Expose functions globally
 window.findPossibleMolecules = findPossibleMolecules;

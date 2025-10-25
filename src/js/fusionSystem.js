@@ -1,5 +1,5 @@
 // 핵융합 시스템 - 새로운 게임 메커니즘
-class FusionSystem {
+export class FusionSystem {
   constructor() {
     this.energy = 0; // 초기 에너지는 0으로 설정 (gameState.energy와 통합)
     this.heat = 0;

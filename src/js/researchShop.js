@@ -1,5 +1,5 @@
 // 연구 & 장비 상점 시스템
-class ResearchShop {
+export class ResearchShop {
   constructor() {
     this.upgrades = {
       // 1. 토카막 코일 (자기장) - 에너지 비용 감소

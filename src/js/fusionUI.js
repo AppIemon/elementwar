@@ -1,5 +1,5 @@
 // 핵융합 시스템 UI 관리
-class FusionUI {
+export class FusionUI {
   constructor() {
     this.fusionModal = null;
     this.researchModal = null;

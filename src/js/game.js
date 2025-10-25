@@ -1,4 +1,6 @@
-var gameState = {
+import { addCardToHand } from './card.js';
+
+export const gameState = {
   playerScore: 0,
   computerScore: 0,
   isGameActive: true,
@@ -21,7 +23,9 @@ var gameState = {
   baseCardCount: 4, // 기본 카드 수 (더 많은 카드 제공)
   costMultiplier: 1.15, // 가격 증가 배수 (더 완만하게 조정)
   cardCountMultiplier: 1.1, // 카드 수 증가 배수 (완만하게 조정)
-  // 턴당 카드 제한 제거됨
+  // 턴당 카드 제한
+  maxCardsPerTurn: 1, // 턴당 최대 카드 배치 수
+  playerCardsPlayedThisTurn: 0, // 현재 턴에 플레이어가 배치한 카드 수
   // 핵융합 시스템 상태
   fusionSystem: null,
   // 난이도: 'easy' | 'normal' | 'hard'
@@ -1394,8 +1398,18 @@ function computeElementStatsFallback(element, rarity) {
 async function initGame() {
   console.log("Initializing game state...");
 
-  // 모든 게임 데이터 로드
-  await loadAllGameData();
+  try {
+    // 모든 게임 데이터 로드
+    console.log("initGame: Loading all game data...");
+    const dataLoaded = await loadAllGameData();
+    if (!dataLoaded) {
+      throw new Error("게임 데이터 로드에 실패했습니다.");
+    }
+    console.log("initGame: Game data loaded successfully");
+  } catch (error) {
+    console.error("initGame: Failed to load game data:", error);
+    throw error;
+  }
 
   // 애니메이션 컨테이너들 정리
   if (typeof window.cleanupAnimationContainers === 'function') {
@@ -1403,9 +1417,24 @@ async function initGame() {
   }
 
   // --- Modify properties instead of reassigning gameState ---
-  // Clear arrays
-  gameState.playerHand.length = 0;
-  gameState.computerHand.length = 0;
+  // gameState가 존재하는지 확인하고 초기화
+  if (!gameState) {
+    console.error('gameState 객체가 정의되지 않았습니다!');
+    return;
+  }
+  
+  // 배열들이 존재하는지 확인하고 초기화
+  if (!gameState.playerHand || !Array.isArray(gameState.playerHand)) {
+    gameState.playerHand = [];
+  } else {
+    gameState.playerHand.length = 0;
+  }
+  
+  if (!gameState.computerHand || !Array.isArray(gameState.computerHand)) {
+    gameState.computerHand = [];
+  } else {
+    gameState.computerHand.length = 0;
+  }
 
   // Reset values
   gameState.playerScore = 0;
@@ -1418,6 +1447,8 @@ async function initGame() {
   gameState.computerCoins = 20;
   gameState.drawCount = 0;
   gameState.energy = 100; // 초기 에너지 제공
+  gameState.maxCardsPerTurn = 1; // 턴당 최대 카드 배치 수 초기화
+  gameState.playerCardsPlayedThisTurn = 0; // 현재 턴에 플레이어가 배치한 카드 수 초기화
 
   // 온라인 모드가 아닌 경우에만 오프라인 모드로 설정
   if (!onlineGameState.isOnline) {
@@ -1470,6 +1501,47 @@ async function initGame() {
     console.log("기본 핵융합 시스템 객체가 생성되었습니다.");
   }
 
+  // battlefield 객체가 존재하는지 확인하고 초기화
+  if (!battlefield) {
+    console.error('battlefield 객체가 정의되지 않았습니다!');
+    return;
+  }
+  
+  // battlefield.lanes가 존재하는지 확인하고 초기화
+  if (!battlefield.lanes || !Array.isArray(battlefield.lanes)) {
+    battlefield.lanes = [
+      { player: null, computer: null },
+      { player: null, computer: null },
+      { player: null, computer: null },
+      { player: null, computer: null },
+      { player: null, computer: null }
+    ];
+  }
+  
+  // battlefield.bases가 존재하는지 확인하고 초기화
+  if (!battlefield.bases) {
+    battlefield.bases = {
+      player: { hp: Math.pow(10, 20), maxHp: Math.pow(10, 20) },
+      computer: { hp: Math.pow(10, 20), maxHp: Math.pow(10, 20) }
+    };
+  } else {
+    // 서버에서 받은 데이터 구조에 맞게 변환 (player1/player2 -> player/computer)
+    if (battlefield.bases.player1 && !battlefield.bases.player) {
+      battlefield.bases.player = battlefield.bases.player1;
+    }
+    if (battlefield.bases.player2 && !battlefield.bases.computer) {
+      battlefield.bases.computer = battlefield.bases.player2;
+    }
+    
+    // 기본값 설정
+    if (!battlefield.bases.player) {
+      battlefield.bases.player = { hp: Math.pow(10, 20), maxHp: Math.pow(10, 20) };
+    }
+    if (!battlefield.bases.computer) {
+      battlefield.bases.computer = { hp: Math.pow(10, 20), maxHp: Math.pow(10, 20) };
+    }
+  }
+  
   battlefield.bases.player.hp = Math.pow(10, 20);
   battlefield.bases.computer.hp = Math.pow(10, 20);
   console.log("initGame: Resetting battlefield...");
@@ -1620,37 +1692,45 @@ function createCardWithRarity(rarity) {
 // 기존 카드들의 능력치를 새로운 스케일링 공식에 맞게 업데이트
 function updateExistingCardStats() {
   // 플레이어 핸드의 카드들 업데이트
-  gameState.playerHand.forEach(card => {
-    if (card.element && card.element.number) {
-      const stats = computeElementStats(card.element, card.rarity);
-      card.maxHp = stats.hp;
-      card.hp = Math.min(card.hp, card.maxHp);
-      card.atk = stats.atk;
-    }
-  });
-  
-  // 컴퓨터 핸드의 카드들 업데이트
-  gameState.computerHand.forEach(card => {
-    if (card.element && card.element.number) {
-      const stats = computeElementStats(card.element, card.rarity);
-      card.maxHp = stats.hp;
-      card.hp = Math.min(card.hp, card.maxHp);
-      card.atk = stats.atk;
-    }
-  });
-  
-  // 전장의 카드들 업데이트
-  battlefield.lanes.forEach(lane => {
-    ['player', 'computer'].forEach(side => {
-      const card = lane[side];
-      if (card && card.element && card.element.number && !card.isSkull) {
+  if (gameState.playerHand && Array.isArray(gameState.playerHand)) {
+    gameState.playerHand.forEach(card => {
+      if (card && card.element && card.element.number) {
         const stats = computeElementStats(card.element, card.rarity);
         card.maxHp = stats.hp;
         card.hp = Math.min(card.hp, card.maxHp);
         card.atk = stats.atk;
       }
     });
-  });
+  }
+  
+  // 컴퓨터 핸드의 카드들 업데이트
+  if (gameState.computerHand && Array.isArray(gameState.computerHand)) {
+    gameState.computerHand.forEach(card => {
+      if (card && card.element && card.element.number) {
+        const stats = computeElementStats(card.element, card.rarity);
+        card.maxHp = stats.hp;
+        card.hp = Math.min(card.hp, card.maxHp);
+        card.atk = stats.atk;
+      }
+    });
+  }
+  
+  // 전장의 카드들 업데이트
+  if (battlefield && battlefield.lanes && Array.isArray(battlefield.lanes)) {
+    battlefield.lanes.forEach(lane => {
+      if (lane && typeof lane === 'object') {
+        ['player', 'computer'].forEach(side => {
+          const card = lane[side];
+          if (card && card.element && card.element.number && !card.isSkull) {
+            const stats = computeElementStats(card.element, card.rarity);
+            card.maxHp = stats.hp;
+            card.hp = Math.min(card.hp, card.maxHp);
+            card.atk = stats.atk;
+          }
+        });
+      }
+    });
+  }
   
   console.log("기존 카드들의 능력치가 새로운 스케일링 공식에 맞게 업데이트되었습니다.");
 }
@@ -1742,9 +1822,10 @@ function drawCards(side) {
                 showMessage(`${side === 'player' ? '플레이어가' : '컴퓨터가'} ${newCards.length}장의 카드를 뽑았습니다! (비용: ${cost} 코인)`, 'success');
                 
                 // 튜토리얼 액션 처리
-                if (typeof window.onCardsDrawn === 'function') {
-                  window.onCardsDrawn(side, newCards.length);
-                }
+                // TODO: onCardsDrawn 함수 구현 필요
+                // if (typeof window.onCardsDrawn === 'function') {
+                //   window.onCardsDrawn(side, newCards.length);
+                // }
                 
                 // 뽑기 횟수 증가
                 gameState.drawCount++;
@@ -1806,9 +1887,10 @@ function drawCards(side) {
             showMessage(`${side === 'player' ? '플레이어가' : '컴퓨터가'} ${newCards.length}장의 카드를 뽑았습니다! (비용: ${cost} 코인)`, 'success');
             
             // 튜토리얼 액션 처리
-            if (typeof window.onCardsDrawn === 'function') {
-              window.onCardsDrawn(side, newCards.length);
-            }
+            // TODO: onCardsDrawn 함수 구현 필요
+            // if (typeof window.onCardsDrawn === 'function') {
+            //   window.onCardsDrawn(side, newCards.length);
+            // }
             
             // 온라인 게임인 경우 상대방에게 카드 뽑기 알림
             // 온라인 게임에서는 카드 뽑기 동기화는 폴링으로 처리
@@ -2072,6 +2154,7 @@ async function endTurn() {
     
     // 턴 상태 변경을 전투 후로 이동
     gameState.isPlayerTurn = false;
+    gameState.playerCardsPlayedThisTurn = 0; // 턴 종료 시 카드 배치 수 리셋
     
     // 튜토리얼 액션 처리
     if (typeof window.onTurnEnded === 'function') {
@@ -2825,6 +2908,8 @@ function resetGame() {
   gameState.computerCoins = 20;
   gameState.drawCount = 0; // Reset draw count
   gameState.energy = 100; // 초기 에너지 제공
+  gameState.maxCardsPerTurn = 1; // 턴당 최대 카드 배치 수 초기화
+  gameState.playerCardsPlayedThisTurn = 0; // 현재 턴에 플레이어가 배치한 카드 수 초기화
 
   // fusionSystem 초기화 확인
   if (!gameState.fusionSystem && window.fusionSystem) {
@@ -3075,10 +3160,6 @@ function updateUI() {
 }
 
 // Function to get the current cost of drawing cards (통일된 시스템)
-function getCurrentDrawCost() {
-  return Math.floor(gameState.baseDrawCost * Math.pow(gameState.costMultiplier, gameState.drawCount));
-}
-
 // 컴퓨터 성장률을 턴 진행에 따라 점진적으로 업데이트하는 함수
 function updateComputerGrowthRate() {
   const turnCount = gameState.turnCount || 1;
@@ -3184,6 +3265,7 @@ window.updateBaseDisplay = updateBaseDisplay; // Ensure exposed if called elsewh
 window.damageBase = damageBase; // Expose if needed
 window.endGame = endGame; // Expose endGame
 window.updateComputerCardGrowth = updateComputerCardGrowth; // Expose computer card growth update
+window.getDifficultyConfig = getDifficultyConfig; // Expose difficulty config function
 
 // --- Add missing executeAttack function ---
 function executeAttack(attackerCard, defenderCard) {
@@ -3685,7 +3767,31 @@ function syncCardDraw(data) {
   }
 }
 
-// 전역 변수와 함수로 노출
+// 주요 함수들 export (실제로 정의된 함수들만)
+export {
+  onlineGameState,
+  setOnlineMode,
+  syncGameState,
+  updateOnlineGameState,
+  endOnlineGame,
+  updateOnlineTurnUI,
+  processOnlineTurnEnd,
+  syncBattlefield,
+  syncCardPlacement,
+  syncCardDraw,
+  startTurnTimeout,
+  clearTurnTimeout,
+  resetGame,
+  drawCards,
+  initGame,
+  updateTurnIndicator,
+  getCurrentDrawCost,
+  getCurrentCardCount,
+  addEnergy,
+  updateExistingCardStats
+};
+
+// 전역 변수와 함수로 노출 (기존 코드와의 호환성을 위해)
 window.gameState = gameState;
 window.battlefield = battlefield;
 window.onlineGameState = onlineGameState;

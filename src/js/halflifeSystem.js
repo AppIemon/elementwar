@@ -1,5 +1,5 @@
 // 과학적 반감기 시스템 - 실제 원소 데이터 기반
-class HalfLifeSystem {
+export class HalfLifeSystem {
   constructor() {
     this.decayRules = this.initializeDecayRules();
     this.stableIslands = this.initializeStableIslands();

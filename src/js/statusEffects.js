@@ -1,5 +1,5 @@
 // 상태 이상 시스템
-class StatusEffectSystem {
+export class StatusEffectSystem {
   constructor() {
     this.effects = new Map();
     this.initializeEffects();

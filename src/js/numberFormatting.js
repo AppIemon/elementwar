@@ -1,5 +1,5 @@
 // 숫자 포맷팅 시스템 - 소숫점 한자리까지 표시
-class NumberFormatting {
+export class NumberFormatting {
   constructor() {
     // 숫자 단위 매핑 (지수 -> 단위)
     this.units = {

@@ -1,6 +1,7 @@
 // Initial coins are set in gameState in game.js
+import { gameState } from './game.js';
 
-function getCoinAmount(side = 'player') {
+export function getCoinAmount(side = 'player') {
   return side === 'player' ? gameState.playerCoins : gameState.computerCoins;
 }
 
@@ -92,6 +93,16 @@ function resetCoins() {
   animation: coin-pulse 0.3s ease-in-out;
 }
 */
+
+// Export functions for module imports
+export {
+  spendCoins,
+  addCoins,
+  updateCoinDisplay,
+  getCoinAmount,
+  updateEnergyDisplay,
+  updateHeatDisplay
+};
 
 // Expose functions to the global scope
 window.spendCoins = spendCoins;

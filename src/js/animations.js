@@ -1,5 +1,5 @@
 // anime.js가 존재하는지 확인
-function checkAnimeExists() {
+export function checkAnimeExists() {
   if (typeof anime === 'undefined') {
     console.error('anime.js 라이브러리를 찾을 수 없습니다. 애니메이션이 작동하지 않을 수 있습니다.');                                                           
     return false;
@@ -734,7 +734,7 @@ function createCardDrawnHTML(card) {
   } else {
     // 일반 원소 카드
     displaySymbol = element.symbol || '?';
-    displayNumber = element.number ? element.number + '번' : '';
+    displayNumber = element.number ? element.symbol + ' 원소' : '';
     displayName = element.name || '카드';
     elementColor = element.color || 'bg-gray-700';
   }
@@ -2467,6 +2467,11 @@ function cleanupAnimationContainers() {
     }
   });
 }
+
+// Export functions for module imports
+export {
+  cleanupAnimationContainers
+};
 
 // 전역 함수로 노출
 window.playAttackAnimation = playAttackAnimation;

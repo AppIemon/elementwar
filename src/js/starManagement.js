@@ -1,5 +1,5 @@
 // 별 관리 시스템 (새로운 시스템)
-class StarManagement {
+export class StarManagement {
   constructor() {
     this.stars = 0; // 현재 활성 별 수
     this.totalStarsCreated = 0; // 총 생성된 별 수

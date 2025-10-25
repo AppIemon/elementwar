@@ -1,6 +1,12 @@
 // 카드 객체 속성 정의 및 사용법 가이드
 // 이 파일은 molecules.json의 ability 필드에서 사용할 수 있는 me와 enemy 객체의 속성들을 정의합니다.
 
+// 기본 export (이 파일은 주로 문서화 목적)
+export const CARD_PROPERTIES_GUIDE = {
+  // 이 파일은 주로 문서화 목적이므로 실제 export할 함수는 없습니다.
+  // 다른 파일에서 참조할 수 있도록 기본 export를 제공합니다.
+};
+
 /*
 === me (자신의 카드) 객체 속성 ===
 

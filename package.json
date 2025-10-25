@@ -1,40 +1,22 @@
 {
-  "name": "element-battle",
-  "version": "1.0.0",
-  "description": "원소 대전 - 화학 원소 카드 배틀 게임",
-  "main": "server.js",
+  "name": "elementwar",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "dev:local": "powershell -Command \"if (Test-Path vercel.json) { Move-Item vercel.json vercel.json.bak }; nodemon server.js\"",
-    "build": "echo 'No build step required'",
-    "vercel-build": "echo 'No build step required'",
-    "cleanup": "node cleanup-code.js",
-    "cleanup:no-backup": "node cleanup-code.js --no-backup",
-    "cleanup:simple": "node cleanup-simple.js",
-    "cleanup:simple:no-backup": "node cleanup-simple.js --no-backup"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "vercel-build": "vite build",
+    "start": "node server.js"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.2.1",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.7.5",
+    "cors": "^2.8.5"
   },
   "devDependencies": {
-    "gh-pages": "^6.3.0",
-    "nodemon": "^3.0.2"
-  },
-  "keywords": [
-    "game",
-    "chemistry",
-    "elements",
-    "battle",
-    "ai"
-  ],
-  "author": "Element Battle Team",
-  "license": "MIT"
+    "vite": "^7.1.7",
+    "terser": "^5.24.0"
+  }
 }

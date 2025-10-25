@@ -1,5 +1,5 @@
 // 원소별 실제 색상 시스템
-class ElementColorSystem {
+export class ElementColorSystem {
   constructor() {
     this.elementCategories = {
       // 비금속 원소

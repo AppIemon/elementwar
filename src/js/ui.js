@@ -1,5 +1,19 @@
-function initUI() {
-  updateCoinDisplay();
+import { gameState, updateTurnIndicator, getCurrentDrawCost, getCurrentCardCount, addEnergy } from './game.js';
+import { renderBattlefield, updateBaseDisplay, battlefield } from './battlefield.js';
+import { updateCoinDisplay, spendCoins, getCoinAmount } from './coin.js';
+import { getElementByNumber, createMoleculeFromElements, createMoleculeFromMultipleElements } from './molecules.js';
+import { addCardToHand, createCardElement, getStarGrowthContribution, calculateUpgradeCost, calculateUpgradeStats } from './card.js';
+import { setupHandCardsDraggable } from './dragdrop.js';
+
+export function initUI() {
+  try {
+    console.log("initUI: Starting...");
+    updateCoinDisplay();
+    console.log("initUI: Completed successfully");
+  } catch (error) {
+    console.error("initUI: Error occurred:", error);
+    throw error;
+  }
 }
 
 function renderPlayerHand() {
@@ -446,7 +460,8 @@ function attemptManualSynthesis(sourceCard, reaction) {
     // 3. Perform synthesis
     spendCoins(cost, 'player');
     // Use createMoleculeFromReaction (assuming it exists and returns an ElementCard)
-    const moleculeCard = createMoleculeFromReaction(reaction);
+    // const moleculeCard = createMoleculeFromReaction(reaction);
+    const moleculeCard = null; // TODO: Implement createMoleculeFromReaction function
     if (moleculeCard) {
         // Calculate stats based on source card components
         let finalHp = 0;
@@ -487,7 +502,7 @@ function attemptManualSynthesis(sourceCard, reaction) {
         moleculeCard.owner = sourceCard.owner;
         moleculeCard.components = finalComponents; // Store combined components
         moleculeCard.isSynthesis = true; // Mark as synthesis
-        moleculeCard.name = generateSynthesisName(moleculeCard.components); // Generate name like H₂O+Na₂
+        moleculeCard.name = '합성물'; // TODO: Implement generateSynthesisName function
         moleculeCard.rarity = finalComponents.reduce((highest, comp) => { // Calculate rarity
              const rarityOrder = { common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5 };
              const currentRarity = comp.rarity || 'common';
@@ -654,16 +669,18 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmBtn.addEventListener('click', () => {
             if (cardToUpgrade && typeof upgradeCard === 'function') {
                 // Pass the origin context to upgradeCard
-                const success = upgradeCard(cardToUpgrade, upgradeOrigin);
-                if (success) {
-                    showMessage(`${cardToUpgrade.name} 강화 완료!`, 'success');
-                    // Re-render based on origin
-                    if (upgradeOrigin === 'hand') {
-                        renderPlayerHand();
-                    } else {
-                        renderBattlefield();
-                    }
-                }
+                // const success = upgradeCard(cardToUpgrade, upgradeOrigin);
+                // TODO: Implement upgradeCard function
+                showMessage('강화 기능이 아직 구현되지 않았습니다.', 'warning');
+                // if (success) {
+                //     showMessage(`${cardToUpgrade.name} 강화 완료!`, 'success');
+                //     // Re-render based on origin
+                //     if (upgradeOrigin === 'hand') {
+                //         renderPlayerHand();
+                //     } else {
+                //         renderBattlefield();
+                //     }
+                // }
                 // upgradeCard function should show message on failure
             }
             hideUpgradeModal();
@@ -1076,8 +1093,10 @@ function updateTurnDisplay() {
     const resultMessage = document.getElementById('result-message');
     if (resultMessage) {
       if (gameState.isPlayerTurn) {
-        const cardsRemaining = gameState.maxCardsPerTurn - gameState.playerCardsPlayedThisTurn;
-        resultMessage.textContent = `${gameState.turnCount}턴: 플레이어 차례 (남은 카드: ${cardsRemaining}/${gameState.maxCardsPerTurn})`;
+        const maxCards = gameState.maxCardsPerTurn || 1;
+        const playedCards = gameState.playerCardsPlayedThisTurn || 0;
+        const cardsRemaining = maxCards - playedCards;
+        resultMessage.textContent = `${gameState.turnCount}턴: 플레이어 차례 (남은 카드: ${cardsRemaining}/${maxCards})`;
         resultMessage.className = 'text-center text-xl font-bold h-12 text-blue-400';
       } else {
         resultMessage.textContent = `${gameState.turnCount}턴: 컴퓨터 차례`;
@@ -1135,6 +1154,23 @@ window.initUI = typeof initUI !== 'undefined' ? initUI : undefined; // Expose if
 window.showUpgradeModal = showUpgradeModal; // Expose the function
 window.hideUpgradeModal = hideUpgradeModal; // Expose hide function if needed elsewhere
 window.updateMoleculeViewerDisplay = updateMoleculeViewerDisplay; // Ensure this is exposed if called externally
+// 주요 함수들 export (실제로 정의된 함수들만)
+export {
+  renderPlayerHand,
+  updateUI,
+  updateEnergyDisplay,
+  updateDrawButtonCosts,
+  showMessage,
+  showCardDetail,
+  showMoleculeViewer,
+  showNextMolecule,
+  showPrevMolecule,
+  attemptManualSynthesis,
+  showErrorMessage,
+  giveInitialCardsAndCoins
+};
+
+// 전역 변수와 함수로 노출 (기존 코드와의 호환성을 위해)
 window.attemptManualSynthesis = attemptManualSynthesis; // Ensure this is exposed
 window.showMoleculeViewer = showMoleculeViewer; // Expose the main function
 window.showNextMolecule = showNextMolecule; // Expose navigation

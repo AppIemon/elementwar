@@ -1,4 +1,4 @@
-let draggedCardData = null;
+export let draggedCardData = null;
 
 // 손패 카드들을 드래그 가능하게 설정
 const setupHandCardsDraggable = () => {
@@ -189,6 +189,12 @@ const handleDragEnd = () => {
     draggedCardData = null;
 };
 
+
+// Export functions for module imports
+export {
+  initDragAndDrop,
+  setupHandCardsDraggable
+};
 
 // expose
 window.initDragAndDrop = initDragAndDrop;

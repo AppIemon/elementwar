@@ -1,6 +1,6 @@
 // 분자 도감 및 검색 시스템
 
-class MoleculeGuide {
+export class MoleculeGuide {
   constructor() {
     this.molecules = [];
     this.filteredMolecules = [];
@@ -608,6 +608,7 @@ let moleculeGuide = null;
 // 초기화 함수
 function initMoleculeGuide() {
   try {
+    console.log('[MoleculeGuide] Starting initialization...');
     if (moleculeGuide) {
       console.log('[MoleculeGuide] Already initialized');
       return;
@@ -617,6 +618,8 @@ function initMoleculeGuide() {
     console.log('[MoleculeGuide] Initialized successfully');
   } catch (error) {
     console.error('[MoleculeGuide] Failed to initialize:', error);
+    console.error('[MoleculeGuide] Error stack:', error.stack);
+    throw error;
   }
 }
 
@@ -633,6 +636,14 @@ function searchMolecules(query) {
     moleculeGuide.searchMolecules(query);
   }
 }
+
+// Export functions for module imports
+export {
+  initMoleculeGuide,
+  discoverMolecule,
+  searchMolecules,
+  moleculeGuide
+};
 
 // 전역 함수로 노출
 window.initMoleculeGuide = initMoleculeGuide;

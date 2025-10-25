@@ -1,4 +1,4 @@
-class ElementCard {
+export class ElementCard {
   constructor(element, hp, atk) {
     this.element = element;
     this.hp = hp;
@@ -610,7 +610,7 @@ function showCardDetail(card) {
   const elementColor = element.color || 'bg-gray-700';
   const displayName = card.name || element.name;
   const displaySymbol = isSynth ? card.name : element.symbol;
-  const displayNumber = isSynth ? '합성' : (element.number + '번');
+  const displayNumber = isSynth ? '합성' : (element.symbol + ' 원소');
   const displayCategory = isSynth ? '합성물' : (element.category || '원소');
   const displayDescription = isSynth ? '여러 원소가 합쳐진 카드입니다.' : (element.description || '정보 없음');
   const displayEnglishName = isSynth ? 'Synthesis' : (element.englishName || displayName);
@@ -981,6 +981,23 @@ function restoreCardFromServer(cardData) {
   return card;
 }
 
-// 전역 함수로 노출
+// 주요 함수들 export (실제로 정의된 함수들만)
+export {
+  calculateUpgradeStats,
+  restoreCardFromServer,
+  createCardElement,
+  addCardToHand
+};
+
+// Export functions for module imports
+export {
+  addCardToHand,
+  calculateUpgradeStats,
+  restoreCardFromServer,
+  getStarGrowthContribution
+};
+
+// 전역 함수로 노출 (기존 코드와의 호환성을 위해)
 window.calculateUpgradeStats = calculateUpgradeStats;
 window.restoreCardFromServer = restoreCardFromServer;
+window.addCardToHand = addCardToHand;

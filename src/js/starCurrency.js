@@ -1,5 +1,5 @@
 // 별 재화 시스템
-class StarCurrency {
+export class StarCurrency {
   constructor() {
     this.playerStars = 0; // 플레이어의 별 재화
     this.computerStars = 0; // 컴퓨터의 별 재화

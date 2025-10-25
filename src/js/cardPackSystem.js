@@ -1,5 +1,5 @@
 // 카드 팩 시스템
-class CardPackSystem {
+export class CardPackSystem {
   constructor() {
     this.packTypes = {
       bronze: {

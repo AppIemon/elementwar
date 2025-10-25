@@ -1,12 +1,18 @@
+import { gameState, initGame, updateExistingCardStats } from './game.js';
+import { updateUI, showMessage, showErrorMessage, giveInitialCardsAndCoins, initializeElementRarities, initEffectsData, loadElementsData, loadMoleculesData } from './ui.js';
+import { initMoleculeGuide } from './moleculeGuide.js';
+import { cleanupAnimationContainers } from './animations.js';
+
 // --- Data Loading Functions ---
 async function loadElementsData() {
   try {
-    const response = await fetch('src/data/elements.json');
+    console.log("Loading elements data...");
+    const response = await fetch('/src/data/elements.json');
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    window.gameState.elementsData = await response.json();
-    console.log("Elements data loaded successfully.");
+    gameState.elementsData = await response.json();
+    console.log("Elements data loaded successfully. Count:", gameState.elementsData.length);
   } catch (error) {
     console.error("Failed to load elements data:", error);
     throw error; // Re-throw to be caught by initializeAppCore
@@ -15,12 +21,13 @@ async function loadElementsData() {
 
 async function loadMoleculesData() {
   try {
-    const response = await fetch('src/data/molecules.json');
-     if (!response.ok) {
+    console.log("Loading molecules data...");
+    const response = await fetch('/src/data/molecules.json');
+    if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    window.gameState.moleculesData = await response.json();
-    console.log("Molecules data loaded successfully.");
+    gameState.moleculesData = await response.json();
+    console.log("Molecules data loaded successfully. Count:", gameState.moleculesData.length);
   } catch (error) {
     console.error("Failed to load molecules data:", error);
     throw error; // Re-throw
@@ -31,12 +38,7 @@ async function loadMoleculesData() {
 async function initializeAppCore() {
     console.log("initializeAppCore: Starting...");
     try {
-        // Ensure gameState object exists (it should be defined in game.js)
-        if (typeof gameState === 'undefined') {
-             // This case should ideally not happen if game.js is loaded first
-             console.error("initializeAppCore: gameState is not defined. Check script load order. game.js must load before app.js.");
-             throw new Error("gameState is missing.");
-        }
+        // gameState is now imported from game.js
 
         await loadElementsData(); // Loads data into the existing gameState object
         await loadMoleculesData(); // Loads molecules data into the existing gameState object
@@ -44,27 +46,24 @@ async function initializeAppCore() {
         console.log("initializeAppCore: Data loaded.");
 
         // Initialize game state and basic systems
-        if (typeof initGame === 'function') {
-            await initGame(); // Modifies the existing gameState object
-            console.log("initializeAppCore: initGame completed.");
-        } else {
-             console.error("initializeAppCore: initGame function not found!");
-             throw new Error("initGame is required but not defined.");
-        }
+        await initGame(); // Modifies the existing gameState object
+        console.log("initializeAppCore: initGame completed.");
 
         // Initialize other systems if they exist
-        if (typeof initUI === 'function') {
-             initUI(); // Potentially sets up modal closures, etc. not covered by updateUI
-             console.log("initializeAppCore: initUI completed.");
-        }
-        if (typeof initUpgradeSystem === 'function') {
-             initUpgradeSystem();
-             console.log("initializeAppCore: initUpgradeSystem completed.");
-        }
-        if (typeof initMoleculeGuide === 'function') {
-             initMoleculeGuide();
-             console.log("initializeAppCore: initMoleculeGuide completed.");
-        }
+        console.log("initializeAppCore: Calling initUI...");
+        initUI(); // Potentially sets up modal closures, etc. not covered by updateUI
+        console.log("initializeAppCore: initUI completed.");
+        // initUpgradeSystem 함수가 정의되지 않았으므로 주석 처리
+        // if (typeof initUpgradeSystem === 'function') {
+        //      console.log("initializeAppCore: Calling initUpgradeSystem...");
+        //      initUpgradeSystem();
+        //      console.log("initializeAppCore: initUpgradeSystem completed.");
+        // } else {
+        //      console.warn("initializeAppCore: initUpgradeSystem function not found!");
+        // }
+        console.log("initializeAppCore: Calling initMoleculeGuide...");
+        initMoleculeGuide();
+        console.log("initializeAppCore: initMoleculeGuide completed.");
         if (typeof window.fusionUI !== 'undefined' && window.fusionUI.init) {
              window.fusionUI.init();
              console.log("initializeAppCore: fusionUI completed.");
@@ -107,18 +106,15 @@ async function initializeAppCore() {
         }, 5000); // 5초마다 실행
 
         // 기존 카드들의 능력치를 새로운 스케일링 공식에 맞게 업데이트
-        if (typeof updateExistingCardStats === 'function') {
-            updateExistingCardStats();
-        }
+        updateExistingCardStats();
 
         // 애니메이션 컨테이너들 정리
-        if (typeof window.cleanupAnimationContainers === 'function') {
-            window.cleanupAnimationContainers();
-        }
+        cleanupAnimationContainers();
 
     } catch (error) {
         console.error('Core initialization failed:', error);
-        showErrorMessage('게임 데이터를 불러오는 중 오류가 발생했습니다.');
+        console.error('Error stack:', error.stack);
+        showErrorMessage('게임 데이터를 불러오는 중 오류가 발생했습니다: ' + error.message);
         throw error; // Re-throw to stop further execution in DOMContentLoaded
     }
 }
@@ -200,13 +196,17 @@ function showErrorMessage(message) {
 
 // after loading moleculesData, compute effectsData automatically
 function initEffectsData() {
+    console.log("initEffectsData: Starting...");
     if (!gameState.moleculesData || gameState.moleculesData.length === 0) {
         console.warn("initEffectsData: moleculesData is not loaded");
         gameState.effectsData = [];
         return;
     }
     
+    console.log("initEffectsData: Processing", gameState.moleculesData.length, "molecules");
     const types = Array.from(new Set(gameState.moleculesData.map(m => m.effects?.type).filter(Boolean)));
+    console.log("initEffectsData: Found effect types:", types);
+    
     gameState.effectsData = types.map(type => {
         // pick first sample molecule for defaults
         const sample = gameState.moleculesData.find(m => m.effects?.type === type)?.effects;
@@ -218,6 +218,8 @@ function initEffectsData() {
             defaultDuration: sample?.duration ?? 0
         };
     });
+    
+    console.log("initEffectsData: Created", gameState.effectsData.length, "effect types");
 }
 
 // Main execution block after DOM is loaded
@@ -433,12 +435,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const saved = localStorage.getItem('difficulty');
             const select = document.getElementById('difficulty-select');
-            if (saved && window.gameState) {
-                window.gameState.difficulty = saved;
+            if (saved && gameState) {
+                gameState.difficulty = saved;
                 if (select) select.value = saved;
-            } else if (select && window.gameState) {
+            } else if (select && gameState) {
                 // 셀렉트 초기 상태를 gameState로 반영
-                window.gameState.difficulty = select.value || 'normal';
+                gameState.difficulty = select.value || 'normal';
             }
         } catch (e) { /* ignore storage errors */ }
 
@@ -456,9 +458,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // 인라인/모달 합성실 드롭존 바인딩 실행
-        if (typeof window.attachChemLabDnD === 'function') {
-            window.attachChemLabDnD();
-        }
+        // TODO: attachChemLabDnD 함수 구현 필요
+        // if (typeof window.attachChemLabDnD === 'function') {
+        //     window.attachChemLabDnD();
+        // }
 
     } catch (error) {
         // Error already logged in initializeAppCore or setupEventListeners

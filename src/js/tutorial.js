@@ -1,5 +1,8 @@
 // 튜토리얼 시스템
-class TutorialSystem {
+import { ElementCard, addCardToHand } from './card.js';
+import { gameState } from './game.js';
+
+export class TutorialSystem {
   constructor() {
     this.currentStep = 0;
     this.isActive = false;

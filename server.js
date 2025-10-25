@@ -1,16 +1,24 @@
-const express = require('express');
-const http = require('http');
-const cors = require('cors');
-const path = require('path');
-const { Server } = require('socket.io');
+import express from 'express';
+import http from 'http';
+import cors from 'cors';
+import path from 'path';
+import { Server } from 'socket.io';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
-  }
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  transports: ['polling', 'websocket']
 });
 
 // 미들웨어 설정
@@ -57,9 +65,6 @@ class GameRoomManager {
 
   async loadGameData() {
     try {
-      const fs = require('fs');
-      const path = require('path');
-      
       // elements.json 로드
       const elementsPath = path.join(__dirname, 'src', 'data', 'elements.json');
       const elementsContent = fs.readFileSync(elementsPath, 'utf8');
@@ -1121,6 +1126,11 @@ app.post('/api/place-card', (req, res) => {
   }
 });
 
+
+// Socket.IO 경로 처리
+app.get('/socket.io/', (req, res) => {
+  res.status(404).send('Socket.IO endpoint not found');
+});
 
 // Vercel 환경에서는 서버를 시작하지 않음
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {

@@ -1,7 +1,7 @@
 // 특수능력 매핑 시스템
 // molecules.json의 특수능력을 코드에서 사용할 수 있는 형식으로 변환
 
-const SPECIAL_ABILITY_MAPPING = {
+export const SPECIAL_ABILITY_MAPPING = {
   // 보호/방어 관련
   "격자 안정": {
     effect: "shield_generation",

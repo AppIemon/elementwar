@@ -1,4 +1,4 @@
-let battlefield = {
+export let battlefield = {
   lanes: [
     { player: null, computer: null },
     { player: null, computer: null },
@@ -284,6 +284,12 @@ function placeCardOnBattlefield(card, laneIndex, side) {
         // 손패에서 전장으로 이동하는 경우
         removeCardFromHand(card.id, 'player');
         console.log(`[placeCard] 손패에서 카드 제거 - ${card.name}`);
+        
+        // 턴당 카드 배치 수 증가
+        if (gameState.playerCardsPlayedThisTurn !== undefined) {
+          gameState.playerCardsPlayedThisTurn++;
+          console.log(`[placeCard] 턴당 카드 배치 수: ${gameState.playerCardsPlayedThisTurn}/${gameState.maxCardsPerTurn}`);
+        }
       }
     }
 
@@ -323,6 +329,12 @@ function placeCardOnBattlefield(card, laneIndex, side) {
             if (side === 'player') {
               removeCardFromHand(card.id, 'player');
               console.log(`[placeCard] 온라인 게임: 서버 응답 후 손패에서 카드 제거 - ${card.name}`);
+              
+              // 턴당 카드 배치 수 증가
+              if (gameState.playerCardsPlayedThisTurn !== undefined) {
+                gameState.playerCardsPlayedThisTurn++;
+                console.log(`[placeCard] 온라인 게임: 턴당 카드 배치 수: ${gameState.playerCardsPlayedThisTurn}/${gameState.maxCardsPerTurn}`);
+              }
             }
             
             renderBattlefield();
@@ -436,6 +448,12 @@ function placeCardOnBattlefield(card, laneIndex, side) {
             if (side === 'player') {
               removeCardFromHand(card.id, 'player');
               console.log(`[placeCard] 온라인 게임: 서버 응답 후 손패에서 카드 제거 - ${card.name}`);
+              
+              // 턴당 카드 배치 수 증가
+              if (gameState.playerCardsPlayedThisTurn !== undefined) {
+                gameState.playerCardsPlayedThisTurn++;
+                console.log(`[placeCard] 온라인 게임: 턴당 카드 배치 수: ${gameState.playerCardsPlayedThisTurn}/${gameState.maxCardsPerTurn}`);
+              }
             }
             
             renderBattlefield();
@@ -677,18 +695,7 @@ function findCardInHand(cardId) {
   return null;
 }
 
-function removeCardFromHand(cardId, side) {
-  const hand = (side === 'player') ? gameState.playerHand : gameState.computerHand;
-  const index = hand.findIndex(card => card.id === cardId);
-  if (index !== -1) {
-    hand.splice(index, 1);
-    if (side === 'player') {
-      renderPlayerHand();
-    }
-    return true;
-  }
-  return false;
-}
+// removeCardFromHand 함수는 위에 이미 정의됨
 
 function updateBaseDisplay() {
   const playerHpElement = document.getElementById('player-base-hp');
@@ -867,6 +874,19 @@ function resolveAttack(attackerCard, targetCard, attackerLaneIndex, targetLaneIn
   return false;
 }
 
+// 주요 함수들 export (실제로 정의된 함수들만)
+export {
+  calculateAffinityDamage,
+  checkSynergy,
+  placeCardOnBattlefield,
+  renderBattlefield,
+  findCardInHand,
+  removeCardFromHand,
+  createReplacedCard,
+  updateBaseDisplay
+};
+
+// 전역 함수로 노출 (기존 코드와의 호환성을 위해)
 window.placeCardOnBattlefield = placeCardOnBattlefield;
 window.renderBattlefield = renderBattlefield;
 window.resetBattlefield = typeof resetBattlefield !== 'undefined' ? resetBattlefield : undefined;
