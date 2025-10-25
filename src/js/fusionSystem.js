@@ -1,7 +1,7 @@
 // 핵융합 시스템 - 새로운 게임 메커니즘
 class FusionSystem {
   constructor() {
-    this.energy = 100; // 초기 에너지 제공 (increased)
+    this.energy = 0; // 초기 에너지는 0으로 설정 (gameState.energy와 통합)
     this.heat = 0;
     this.maxHeat = 100;
     this.autoCompress = true;
@@ -376,8 +376,8 @@ class FusionSystem {
       }
     }
 
-    // 에너지 확인
-      const currentEnergy = Number.isFinite(Number(this.energy)) ? Number(this.energy) : 0;
+    // 에너지 확인 (gameState.energy와 동기화)
+      const currentEnergy = Number.isFinite(Number(gameState.energy)) ? Number(gameState.energy) : 0;
       if (currentEnergy < energyCost) {
       return { 
         success: false, 
@@ -390,7 +390,8 @@ class FusionSystem {
         this.materials[element] = Math.max(0, (this.materials[element] || 0) - required);
     }
 
-      this.energy = Math.max(0, currentEnergy - energyCost);
+      gameState.energy = Math.max(0, currentEnergy - energyCost);
+      this.energy = gameState.energy; // 동기화
       this.heat = Math.max(0, (this.heat || 0) + 5); // 열 증가
     this.materials[moleculeId] = (this.materials[moleculeId] || 0) + 1;
 
@@ -472,19 +473,34 @@ class FusionSystem {
         return { success: false, message: `${previousElement}가 부족합니다. (필요: ${requiredMaterials}, 보유: ${currentMaterials})` };
     }
 
-    // 에너지 확인 - 모든 경우에 에너지가 필요함
-      const currentEnergy = Number.isFinite(Number(this.energy)) ? Number(this.energy) : 0;
+    // 에너지 확인 - 모든 경우에 에너지가 필요함 (gameState.energy와 동기화)
+      const currentEnergy = Number.isFinite(Number(gameState.energy)) ? Number(gameState.energy) : 0;
       if (currentEnergy < energyCost) {
         return { success: false, message: `⚡ 에너지가 부족합니다! (필요: ${energyCost}, 보유: ${currentEnergy})\nH를 에너지로 변환하거나 기다려서 에너지를 회복하세요.` };
     }
 
+    // 수소 최소 갯수 체크 - 수소가 있으면 사용하지만, 없어도 핵융합 가능
+    const hydrogenCount = this.materials.H || 0;
+    const minHydrogen = Math.max(1, Math.floor(targetZ / 5));
+    const hasEnoughHydrogen = hydrogenCount >= minHydrogen;
+    
+    // 수소가 부족해도 핵융합은 가능하지만, 수소가 있으면 사용
+    if (hasEnoughHydrogen) {
+      // 수소가 충분하면 수소도 소모
+      this.materials.H = Math.max(0, hydrogenCount - minHydrogen);
+    }
+
     // 별 자원 확인 제거 (자동 초신성으로 처리됨)
 
-    // 융합/초신성 실행
-      this.materials[previousElement] = Math.max(0, currentMaterials - requiredMaterials);
-      this.energy = Math.max(0, currentEnergy - energyCost);
-    // 별 자원 소모 제거 (자동 초신성으로 처리됨)
-      this.heat = Math.max(0, (this.heat || 0) + Math.floor(targetZ / 10)); // 열 증가
+    // 융합/초신성 실행 - 재료 소모
+    this.materials[previousElement] = Math.max(0, currentMaterials - requiredMaterials);
+    
+    // 에너지 소모
+    gameState.energy = Math.max(0, currentEnergy - energyCost);
+    this.energy = gameState.energy; // 동기화
+    
+    // 열 증가
+    this.heat = Math.max(0, (this.heat || 0) + Math.floor(targetZ / 10));
 
     const targetSymbol = this.getSymbolByNumber(targetZ);
       if (!targetSymbol) {
@@ -501,7 +517,8 @@ class FusionSystem {
 
     // 잉여 에너지 생성
     const surplusEnergy = Math.floor(targetZ / 5);
-      this.energy = Math.max(0, this.energy + surplusEnergy);
+      gameState.energy = Math.max(0, gameState.energy + surplusEnergy);
+      this.energy = gameState.energy; // 동기화
 
     const processName = isSupernova ? '초신성' : '핵융합';
     const starText = isSupernova ? `, 별: ${starCost}` : '';
@@ -560,8 +577,8 @@ class FusionSystem {
         return { success: false, message: '배치 융합 계산 오류' };
       }
       
-      // 전체 에너지 비용 확인
-      const currentEnergy = Number.isFinite(Number(this.energy)) ? Number(this.energy) : 0;
+      // 전체 에너지 비용 확인 (gameState.energy와 동기화)
+      const currentEnergy = Number.isFinite(Number(gameState.energy)) ? Number(gameState.energy) : 0;
       if (currentEnergy < totalEnergyCost) {
         return { 
           success: false, 
@@ -571,7 +588,7 @@ class FusionSystem {
 
       // 별 자원 확인 제거 (자동 초신성으로 처리됨)
 
-      // 각 융합에 대해 재료 확인
+      // 각 융합에 대해 재료 확인 (수소 요구사항 제거)
       for (const targetZ of fusionTargets) {
         const requiredMaterials = this.calculateRequiredMaterials(targetZ);
         const previousElement = this.getSymbolByNumber(targetZ - 1);
@@ -601,6 +618,13 @@ class FusionSystem {
         // 재료 소모
         this.materials[previousElement] = Math.max(0, (this.materials[previousElement] || 0) - requiredMaterials);
         
+        // 수소 소모 (있는 경우에만)
+        const hydrogenCount = this.materials.H || 0;
+        const minHydrogen = Math.max(1, Math.floor(targetZ / 5));
+        if (hydrogenCount >= minHydrogen) {
+          this.materials.H = Math.max(0, hydrogenCount - minHydrogen);
+        }
+        
         // 결과 생성
         this.materials[targetSymbol] = (this.materials[targetSymbol] || 0) + 1;
 
@@ -622,12 +646,14 @@ class FusionSystem {
       }
 
       // 에너지, 열 처리 (별 자원 제거)
-      this.energy = Math.max(0, currentEnergy - totalEnergyCost);
+      gameState.energy = Math.max(0, currentEnergy - totalEnergyCost);
+      this.energy = gameState.energy; // 동기화
       this.heat = Math.max(0, (this.heat || 0) + totalHeatIncrease);
 
       // 잉여 에너지 생성
       const totalSurplusEnergy = fusionTargets.reduce((sum, targetZ) => sum + Math.floor(targetZ / 5), 0);
-      this.energy = Math.max(0, this.energy + totalSurplusEnergy);
+      gameState.energy = Math.max(0, gameState.energy + totalSurplusEnergy);
+      this.energy = gameState.energy; // 동기화
 
       const fusionCount = fusionTargets.filter(z => z <= 26).length;
       const supernovaCount = fusionTargets.filter(z => z > 26).length;
@@ -654,6 +680,263 @@ class FusionSystem {
       return { 
         success: false, 
         message: `배치 융합 중 오류가 발생했습니다: ${error.message}` 
+      };
+    }
+  }
+
+  // 최대 융합 실행 - 반복적으로 융합 가능한 모든 원소를 융합
+  performMaxFusion() {
+    try {
+      console.log('[performMaxFusion] 최대 융합 시작');
+      
+      // 손패를 기반으로 재료 인벤토리 동기화
+      this.syncMaterialsFromHand();
+      
+      console.log('[performMaxFusion] 동기화 후 상태:', {
+        energy: this.energy,
+        materials: this.materials,
+        elementsData: gameState.elementsData?.length
+      });
+      
+      const allResults = [];
+      let totalSuccessCount = 0;
+      let totalEnergyUsed = 0;
+      let roundCount = 0;
+      const maxRounds = 100; // 무한 루프 방지
+      
+      // 융합이 불가능할 때까지 반복
+      while (roundCount < maxRounds) {
+        roundCount++;
+        console.log(`[performMaxFusion] 라운드 ${roundCount} 시작`);
+        
+        // 현재 라운드에서 융합 가능한 원소 찾기
+        const fusionTargets = this.findFusionTargets();
+        
+        if (fusionTargets.length === 0) {
+          console.log(`[performMaxFusion] 라운드 ${roundCount}: 융합 가능한 원소 없음`);
+          break;
+        }
+        
+        console.log(`[performMaxFusion] 라운드 ${roundCount}: ${fusionTargets.length}개 융합 대상 발견`);
+        
+        // 현재 라운드의 융합 실행
+        const roundResults = [];
+        let roundSuccessCount = 0;
+        let roundEnergyUsed = 0;
+        
+        for (const targetZ of fusionTargets) {
+          const fusionResult = this.performSingleFusion(targetZ);
+          if (fusionResult.success) {
+            roundResults.push(fusionResult);
+            roundSuccessCount++;
+            roundEnergyUsed += fusionResult.energyCost;
+          }
+        }
+        
+        if (roundSuccessCount === 0) {
+          console.log(`[performMaxFusion] 라운드 ${roundCount}: 융합 실패`);
+          break;
+        }
+        
+        // 결과 누적
+        allResults.push(...roundResults);
+        totalSuccessCount += roundSuccessCount;
+        totalEnergyUsed += roundEnergyUsed;
+        
+        console.log(`[performMaxFusion] 라운드 ${roundCount} 완료: ${roundSuccessCount}개 융합`);
+        
+        // 재료 인벤토리 재동기화 (새로 생성된 카드들 반영)
+        this.syncMaterialsFromHand();
+      }
+      
+      if (totalSuccessCount > 0) {
+        let message = `${totalSuccessCount}개 핵융합 완료! (에너지: ${totalEnergyUsed}, ${roundCount}라운드)`;
+        
+        // 자동 압축 체크
+        const compressResults = this.checkAutoCompress();
+        if (compressResults && compressResults.length > 0) {
+          message += `\n자동 압축: ${compressResults.length}개 원소 압축됨`;
+        }
+
+        return {
+          success: true,
+          message: message,
+          results: allResults,
+          totalEnergyUsed: totalEnergyUsed,
+          successCount: totalSuccessCount,
+          rounds: roundCount
+        };
+      } else {
+        // 디버깅을 위한 상세 정보 수집
+        const debugInfo = [];
+        const hydrogenCount = this.materials.H || 0;
+        const currentEnergy = Number.isFinite(Number(this.energy)) ? Number(this.energy) : 0;
+        
+        const elementSymbols = Array.isArray(gameState.elementsData)
+          ? gameState.elementsData.map(e => e.symbol)
+          : [];
+        
+        // 각 원소별 상태 확인
+        for (const symbol of elementSymbols.slice(0, 5)) { // 처음 5개만 확인
+          const currentZ = this.getNumberBySymbol(symbol);
+          if (!currentZ || currentZ >= 26) continue;
+          
+          const nextZ = currentZ + 1;
+          const available = this.materials[symbol] || 0;
+          const required = this.calculateRequiredMaterials(nextZ);
+          const energyCost = this.calculateEnergyCost(nextZ);
+          const minHydrogen = Math.max(1, Math.floor(nextZ / 5));
+          
+          debugInfo.push(`${symbol}(${currentZ}): 보유=${available}, 필요=${required}, 에너지=${energyCost}, 수소필요=${minHydrogen}`);
+        }
+        
+        let message = '융합 가능한 원소가 없습니다.\n';
+        if (hydrogenCount === 0) {
+          message += '수소가 없습니다. H 카드를 뽑아주세요.';
+        } else if (currentEnergy === 0) {
+          message += '에너지가 없습니다. H를 에너지로 변환하세요.';
+        } else {
+          message += '재료나 에너지가 부족합니다.';
+        }
+        
+        console.log('[performMaxFusion] 디버그 정보:', {
+          hydrogenCount,
+          currentEnergy,
+          materials: this.materials,
+          debugInfo
+        });
+        
+        return { 
+          success: false, 
+          message: message
+        };
+      }
+    } catch (error) {
+      console.error(`[performMaxFusion] 오류 발생:`, error);
+      return { 
+        success: false, 
+        message: `최대 융합 중 오류가 발생했습니다: ${error.message}` 
+      };
+    }
+  }
+
+  // 융합 가능한 원소들을 찾는 메서드 (단일 라운드용)
+  findFusionTargets() {
+    const fusionTargets = [];
+    const elementSymbols = Array.isArray(gameState.elementsData)
+      ? gameState.elementsData.map(e => e.symbol)
+      : [];
+
+    console.log('[findFusionTargets] 현재 재료 상태:', this.materials);
+    console.log('[findFusionTargets] 현재 에너지:', this.energy);
+
+    // 각 원소에 대해 융합 가능한지 확인 (25번까지만 핵융합)
+    for (const symbol of elementSymbols) {
+      const currentZ = this.getNumberBySymbol(symbol);
+      if (!currentZ || currentZ >= 25) continue; // 25번(Mn)까지만 핵융합
+
+      const nextZ = currentZ + 1;
+      const available = this.materials[symbol] || 0;
+      const required = this.calculateRequiredMaterials(nextZ);
+      const energyCost = this.calculateEnergyCost(nextZ);
+      const currentEnergy = Number.isFinite(Number(this.energy)) ? Number(this.energy) : 0;
+
+      // 수소 최소 갯수 체크 (Z=5 이상일 때만 수소 필요)
+      const hydrogenCount = this.materials.H || 0;
+      const minHydrogen = nextZ >= 5 ? Math.max(1, Math.floor(nextZ / 5)) : 0;
+      
+      console.log(`[findFusionTargets] ${symbol}(${currentZ}) -> ${this.getSymbolByNumber(nextZ)}(${nextZ}): 보유=${available}, 필요=${required}, 에너지=${energyCost}, 현재에너지=${currentEnergy}, 수소필요=${minHydrogen}, 수소보유=${hydrogenCount}`);
+      
+      // 핵융합 가능한 조건 확인 (에너지, 재료, 수소 모두 확인)
+      if (available >= required && 
+          currentEnergy >= energyCost && 
+          hydrogenCount >= minHydrogen) {
+        
+        // 가능한 융합 횟수 계산 (재료 제한)
+        const maxFusions = Math.floor(available / required);
+        
+        // 에너지 제한 고려
+        const energyLimitedFusions = Math.floor(currentEnergy / energyCost);
+        
+        // 수소 제한 고려
+        const hydrogenLimitedFusions = Math.floor(hydrogenCount / minHydrogen);
+        
+        const actualFusions = Math.min(maxFusions, energyLimitedFusions, hydrogenLimitedFusions);
+        
+        console.log(`[findFusionTargets] ${symbol} -> ${this.getSymbolByNumber(nextZ)}: 실제융합가능=${actualFusions} (재료제한=${maxFusions}, 에너지제한=${energyLimitedFusions}, 수소제한=${hydrogenLimitedFusions})`);
+        
+        if (actualFusions > 0) {
+          // 융합 대상 추가 (각 원소당 최대 1개씩만)
+          fusionTargets.push(nextZ);
+          console.log(`[findFusionTargets] 융합 대상 추가: ${this.getSymbolByNumber(nextZ)}(${nextZ})`);
+        }
+      } else {
+        console.log(`[findFusionTargets] ${symbol} -> ${this.getSymbolByNumber(nextZ)}: 융합 불가 (재료=${available >= required}, 에너지=${currentEnergy >= energyCost}, 수소=${hydrogenCount >= minHydrogen})`);
+      }
+    }
+
+    console.log(`[findFusionTargets] 최종 융합 대상: ${fusionTargets.length}개`, fusionTargets.map(z => this.getSymbolByNumber(z)));
+    return fusionTargets;
+  }
+
+  // 단일 융합을 수행하는 메서드
+  performSingleFusion(targetZ) {
+    try {
+        const requiredMaterials = this.calculateRequiredMaterials(targetZ);
+        const energyCost = this.calculateEnergyCost(targetZ);
+        const previousElement = this.getSymbolByNumber(targetZ - 1);
+        const targetSymbol = this.getSymbolByNumber(targetZ);
+
+        // 손패에서 실제 카드 제거
+        const removedCards = this.removeCardsFromHand(previousElement, requiredMaterials);
+        
+        if (removedCards.length < requiredMaterials) {
+        console.warn(`[performSingleFusion] ${previousElement} 카드 부족: 필요 ${requiredMaterials}, 제거 ${removedCards.length}`);
+          // 부족한 카드를 다시 손패에 추가
+          removedCards.forEach(card => {
+            if (typeof addCardToHand === 'function') {
+              addCardToHand(card, 'player');
+            } else {
+              gameState.playerHand.push(card);
+            }
+          });
+        return { success: false, message: '재료 부족' };
+        }
+
+        // 에너지 소모
+        this.energy = Math.max(0, this.energy - energyCost);
+        gameState.energy = this.energy; // 동기화
+        
+        // 열 증가
+        this.heat = Math.max(0, (this.heat || 0) + Math.floor(targetZ / 10));
+
+        // 결과 생성
+        this.materials[targetSymbol] = (this.materials[targetSymbol] || 0) + 1;
+
+        // 생성된 원소를 손패에 카드로 추가
+        this.addElementCardToHand(targetSymbol);
+
+        // 마일스톤 체크
+        this.checkMilestones(targetZ);
+
+        // 잉여 에너지 생성
+        const surplusEnergy = Math.floor(targetZ / 5);
+        this.energy = Math.max(0, this.energy + surplusEnergy);
+        gameState.energy = this.energy; // 동기화
+
+      return {
+        success: true,
+          targetZ: targetZ,
+          targetSymbol: targetSymbol,
+          previousElement: previousElement,
+          requiredMaterials: requiredMaterials,
+          energyCost: energyCost
+      };
+    } catch (error) {
+      console.error(`[performSingleFusion] 오류 발생:`, error);
+      return { 
+        success: false, 
+        message: `단일 융합 중 오류가 발생했습니다: ${error.message}` 
       };
     }
   }
@@ -799,6 +1082,57 @@ class FusionSystem {
     }
   }
 
+  // 손패를 기반으로 재료 인벤토리 동기화
+  syncMaterialsFromHand() {
+    if (!window.gameState || !this) return;
+
+    const hand = Array.isArray(gameState.playerHand) ? gameState.playerHand : [];
+
+    // elementsData 기준으로 원소 심볼 목록 수집 (분자 ID와 구분)
+    const elementSymbols = Array.isArray(gameState.elementsData)
+      ? gameState.elementsData.map(e => e.symbol)
+      : [];
+
+    // 원소 심볼 카운트만 초기화 (분자 키는 건드리지 않음)
+    elementSymbols.forEach(sym => { 
+      if (this.materials[sym] !== undefined) {
+        this.materials[sym] = 0; 
+      }
+    });
+
+    // 손패에서 원소 카드 집계 (합성/해골 제외, 기본 원소만 카운트)
+    hand.forEach(card => {
+      if (card && !card.isSynthesis && !card.isSkull && card.element && elementSymbols.includes(card.element.symbol)) {
+        this.materials[card.element.symbol] = (this.materials[card.element.symbol] || 0) + 1;
+      }
+    });
+
+    console.log('[syncMaterialsFromHand] 손패 카드 수:', hand.length);
+    console.log('[syncMaterialsFromHand] 손패 원소 카드들:', hand.filter(card => card && card.element && !card.isSynthesis && !card.isSkull).map(card => card.element.symbol));
+    console.log('[syncMaterialsFromHand] 동기화 완료:', this.materials);
+  }
+
+  // 손패에서 특정 원소 카드 제거
+  removeCardsFromHand(elementSymbol, count) {
+    const removedCards = [];
+    let removedCount = 0;
+    
+    for (let i = gameState.playerHand.length - 1; i >= 0 && removedCount < count; i--) {
+      const card = gameState.playerHand[i];
+      if (card && 
+          card.element && 
+          card.element.symbol === elementSymbol && 
+          !card.isSkull && 
+          !card.isSynthesis) {
+        removedCards.push(gameState.playerHand.splice(i, 1)[0]);
+        removedCount++;
+      }
+    }
+    
+    console.log(`[removeCardsFromHand] ${elementSymbol} ${removedCount}개 제거됨`);
+    return removedCards;
+  }
+
 
   // 열 냉각
   coolDown() {
@@ -806,12 +1140,13 @@ class FusionSystem {
     this.heat = Math.max(0, this.heat - coolRate);
   }
 
-  // H를 에너지로 변환
+  // H를 에너지로 변환 (gameState.energy와 동기화)
   convertHToEnergy(HAmount) {
     const k = 8 + (this.equipment.reactor * 1); // 리액터 레벨에 따라 효율 증가, 기본 효율도 개선
     const energyGained = Math.floor(HAmount / k);
     this.materials.H -= HAmount;
-    this.energy += energyGained;
+    gameState.energy += energyGained;
+    this.energy = gameState.energy; // 동기화
     return energyGained;
   }
 
@@ -835,7 +1170,7 @@ class FusionSystem {
   // 게임 상태 저장
   saveState() {
     return {
-      energy: this.energy,
+      energy: gameState.energy, // gameState.energy 사용
       heat: this.heat,
       autoCompress: this.autoCompress,
       compressThreshold: this.compressThreshold,
@@ -849,7 +1184,8 @@ class FusionSystem {
 
   // 게임 상태 로드
   loadState(state) {
-    this.energy = state.energy || 0;
+    gameState.energy = state.energy || 0;
+    this.energy = gameState.energy; // 동기화
     this.heat = state.heat || 0;
     this.autoCompress = state.autoCompress || false;
     this.compressThreshold = state.compressThreshold || 4;
@@ -863,16 +1199,37 @@ class FusionSystem {
 
 // 전역 인스턴스
 window.fusionSystem = new FusionSystem();
-// gameState가 존재하면 getter/setter로 양방향 동기화하여 항상 같은 인스턴스를 바라보게 함
-if (typeof window.gameState !== 'undefined' && window.gameState) {
-  try {
-    Object.defineProperty(window.gameState, 'fusionSystem', {
-      get() { return window.fusionSystem; },
-      set(v) { window.fusionSystem = v; },
-      configurable: true
-    });
-  } catch (e) {
-    // defineProperty 실패 시 마지막 수단으로 참조만 재할당
-    window.gameState.fusionSystem = window.fusionSystem;
+
+// gameState와 fusionSystem 연결 함수
+function connectFusionSystemToGameState() {
+  if (typeof window.gameState !== 'undefined' && window.gameState) {
+    try {
+      Object.defineProperty(window.gameState, 'fusionSystem', {
+        get() { return window.fusionSystem; },
+        set(v) { window.fusionSystem = v; },
+        configurable: true
+      });
+      console.log('fusionSystem이 gameState에 연결되었습니다.');
+    } catch (e) {
+      // defineProperty 실패 시 마지막 수단으로 참조만 재할당
+      window.gameState.fusionSystem = window.fusionSystem;
+      console.log('fusionSystem이 gameState에 직접 할당되었습니다.');
+    }
   }
 }
+
+// 즉시 연결 시도
+connectFusionSystemToGameState();
+
+// gameState가 나중에 생성되는 경우를 대비해 주기적으로 연결 시도
+const fusionConnectionInterval = setInterval(() => {
+  if (typeof window.gameState !== 'undefined' && window.gameState && !window.gameState.fusionSystem) {
+    connectFusionSystemToGameState();
+    clearInterval(fusionConnectionInterval); // 연결되면 중단
+  }
+}, 100); // 100ms마다 체크
+
+// 5초 후에는 중단 (무한 루프 방지)
+setTimeout(() => {
+  clearInterval(fusionConnectionInterval);
+}, 5000);

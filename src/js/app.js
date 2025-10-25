@@ -61,10 +61,6 @@ async function initializeAppCore() {
              initUpgradeSystem();
              console.log("initializeAppCore: initUpgradeSystem completed.");
         }
-        if (typeof initializeTutorial === 'function') { // Renamed from initTutorial for clarity
-             initializeTutorial();
-             console.log("initializeAppCore: initializeTutorial completed.");
-        }
         if (typeof initMoleculeGuide === 'function') {
              initMoleculeGuide();
              console.log("initializeAppCore: initMoleculeGuide completed.");
@@ -79,6 +75,20 @@ async function initializeAppCore() {
              console.log("initializeAppCore: starManagement initialized.");
         } else {
              console.warn("initializeAppCore: starManagement not found!");
+        }
+
+        // 별 재화 시스템 초기화
+        if (typeof window.starCurrency !== 'undefined') {
+             console.log("initializeAppCore: starCurrency initialized.");
+        } else {
+             console.warn("initializeAppCore: starCurrency not found!");
+        }
+
+        // 별 융합 UI 초기화
+        if (typeof window.starFusionUI !== 'undefined') {
+             console.log("initializeAppCore: starFusionUI initialized.");
+        } else {
+             console.warn("initializeAppCore: starFusionUI not found!");
         }
 
         // Apply rarities after elementsData is loaded
@@ -243,7 +253,33 @@ document.addEventListener('DOMContentLoaded', async () => {
                     
                     window.gameState.difficulty = value;
                     try { localStorage.setItem('difficulty', value); } catch (e) {}
-                    showMessage(`난이도: ${value === 'easy' ? '쉬움' : value === 'hard' ? '어려움' : '보통'}`, 'info');
+                    
+                    // 컴퓨터 카드 성장률 업데이트
+                    if (typeof window.updateComputerCardGrowth === 'function') {
+                        window.updateComputerCardGrowth();
+                    }
+                    
+                    // 컴퓨터 진행도 난이도 배수 업데이트
+                    if (window.gameState && window.gameState.computerProgression) {
+                        const difficultyMultipliers = {
+                            'very_easy': 0.3,
+                            'easy': 0.5,
+                            'normal': 1.0,
+                            'hard': 1.5,
+                            'very_hard': 2.0
+                        };
+                        window.gameState.computerProgression.difficultyMultiplier = difficultyMultipliers[value] || 1.0;
+                        
+                        // 성장률 재계산
+                        if (typeof window.updateComputerGrowthRate === 'function') {
+                            window.updateComputerGrowthRate();
+                        }
+                        
+                        console.log(`Computer difficulty multiplier updated to: ${window.gameState.computerProgression.difficultyMultiplier}`);
+                    }
+                    
+                    const diff = window.getDifficultyConfig ? window.getDifficultyConfig() : { name: value };
+                    showMessage(`난이도가 ${diff.name}로 변경되었습니다.`, 'info');
                 }
             });
 
@@ -271,8 +307,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Modals (assuming these functions are globally accessible)
             safeAddListener('close-modal', 'click', () => {
-                if (typeof hideCardDetail === 'function') {
-                    hideCardDetail();
+                if (typeof window.hideCardDetail === 'function') {
+                    window.hideCardDetail();
                 } else {
                      document.getElementById('card-detail-modal').classList.add('hidden');
                 }
@@ -306,8 +342,51 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             // Tutorial button
-            safeAddListener('tutorial-btn', 'click', showTutorial); // Assuming showTutorial is global
-            
+            safeAddListener('tutorial-btn', 'click', () => {
+                const helpModal = document.getElementById('tutorial-help-modal');
+                if (helpModal) {
+                    helpModal.classList.remove('hidden');
+                } else {
+                    // 튜토리얼 시스템이 로드되지 않은 경우 직접 시작
+                    if (typeof window.startTutorial === 'function') {
+                        window.startTutorial();
+                    } else {
+                        console.warn("Tutorial help modal not found, trying direct start...");
+                        showMessage('튜토리얼을 시작합니다...', 'info');
+                        // 잠시 후 다시 시도
+                        setTimeout(() => {
+                            if (typeof window.startTutorial === 'function') {
+                                window.startTutorial();
+                            } else {
+                                showMessage('튜토리얼 시스템을 로드하는 중입니다. 잠시 후 다시 시도해주세요.', 'warning');
+                            }
+                        }, 500);
+                    }
+                }
+            });
+
+            // Tutorial help modal events
+            safeAddListener('close-tutorial-help', 'click', () => {
+                document.getElementById('tutorial-help-modal').classList.add('hidden');
+            });
+            safeAddListener('close-tutorial-help-btn', 'click', () => {
+                document.getElementById('tutorial-help-modal').classList.add('hidden');
+            });
+
+            safeAddListener('start-tutorial-from-help', 'click', () => {
+                document.getElementById('tutorial-help-modal').classList.add('hidden');
+                // 튜토리얼 시스템이 로드될 때까지 기다림
+                const waitForTutorial = () => {
+                    if (typeof window.startTutorial === 'function') {
+                        window.startTutorial();
+                    } else {
+                        // 100ms 후 다시 시도
+                        setTimeout(waitForTutorial, 100);
+                    }
+                };
+                waitForTutorial();
+            });
+
             // Card Pack button
             safeAddListener('card-pack-btn', 'click', () => {
                 if (typeof window.cardPackUI !== 'undefined' && window.cardPackUI.showPackSelectionModal) {
@@ -361,18 +440,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (e) { /* ignore storage errors */ }
 
-        // Handle tutorial display or give initial cards
-        if (localStorage.getItem('tutorialShown') !== 'true') {
-            if (typeof showTutorial === 'function') {
-                showTutorial(); // This function should handle giving cards after tutorial if needed
-            } else {
-                console.warn("showTutorial function not found, giving initial cards directly.");
-                giveInitialCardsAndCoins();
-            }
-        } else {
-            giveInitialCardsAndCoins();
-        }
+        // Give initial cards
+        giveInitialCardsAndCoins();
         console.log("Initial setup flow completed.");
+
+        // 튜토리얼 완료 여부 확인 및 제안
+        if (typeof window.isTutorialCompleted === 'function' && !window.isTutorialCompleted()) {
+            setTimeout(() => {
+                if (confirm('원소 대전에 처음 오셨나요? 튜토리얼을 시작하시겠습니까?')) {
+                    window.startTutorial();
+                }
+            }, 1000);
+        }
 
         // 인라인/모달 합성실 드롭존 바인딩 실행
         if (typeof window.attachChemLabDnD === 'function') {

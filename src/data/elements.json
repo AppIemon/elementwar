@@ -12,7 +12,11 @@
     "baseAtk": 3,
     "rewardCoins": 2,
     "rarity": "common",
-    "powerIndex": 0
+    "powerIndex": 0,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 2,
@@ -27,7 +31,11 @@
     "baseAtk": 5,
     "rewardCoins": 2,
     "rarity": "uncommon",
-    "powerIndex": 1
+    "powerIndex": 1,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 3,
@@ -41,7 +49,11 @@
     "baseHp": 28,
     "baseAtk": 9,
     "rewardCoins": 3,
-    "powerIndex": 2
+    "powerIndex": 2,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 4,
@@ -55,7 +67,11 @@
     "baseHp": 47,
     "baseAtk": 14,
     "rewardCoins": 3,
-    "powerIndex": 3
+    "powerIndex": 3,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 5,
@@ -69,7 +85,11 @@
     "baseHp": 77,
     "baseAtk": 22,
     "rewardCoins": 4,
-    "powerIndex": 4
+    "powerIndex": 4,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 6,
@@ -83,7 +103,11 @@
     "baseHp": 121,
     "baseAtk": 38,
     "rewardCoins": 3,
-    "powerIndex": 5
+    "powerIndex": 5,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 7,
@@ -97,7 +121,11 @@
     "baseHp": 212,
     "baseAtk": 61,
     "rewardCoins": 5,
-    "powerIndex": 6
+    "powerIndex": 6,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 8,
@@ -111,7 +139,11 @@
     "baseHp": 346,
     "baseAtk": 103,
     "rewardCoins": 5,
-    "powerIndex": 7
+    "powerIndex": 7,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 9,
@@ -125,7 +157,11 @@
     "baseHp": 589,
     "baseAtk": 167,
     "rewardCoins": 6,
-    "powerIndex": 8
+    "powerIndex": 8,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 10,
@@ -140,7 +176,11 @@
     "baseAtk": 286,
     "rewardCoins": 3,
     "rarity": "uncommon",
-    "powerIndex": 9
+    "powerIndex": 9,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 11,
@@ -154,7 +194,11 @@
     "baseHp": 1540,
     "baseAtk": 462,
     "rewardCoins": 6,
-    "powerIndex": 10
+    "powerIndex": 10,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 12,
@@ -168,7 +212,11 @@
     "baseHp": 2707,
     "baseAtk": 762,
     "rewardCoins": 7,
-    "powerIndex": 11
+    "powerIndex": 11,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 13,
@@ -182,7 +230,11 @@
     "baseHp": 4844,
     "baseAtk": 1182,
     "rewardCoins": 6,
-    "powerIndex": 12
+    "powerIndex": 12,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 14,
@@ -196,7 +248,11 @@
     "baseHp": 8069,
     "baseAtk": 1855,
     "rewardCoins": 8,
-    "powerIndex": 13
+    "powerIndex": 13,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 15,
@@ -210,7 +266,11 @@
     "baseHp": 13628,
     "baseAtk": 3150,
     "rewardCoins": 8,
-    "powerIndex": 14
+    "powerIndex": 14,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 16,
@@ -224,7 +284,11 @@
     "baseHp": 23652,
     "baseAtk": 5395,
     "rewardCoins": 7,
-    "powerIndex": 15
+    "powerIndex": 15,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 17,
@@ -238,7 +302,11 @@
     "baseHp": 39396,
     "baseAtk": 9567,
     "rewardCoins": 6,
-    "powerIndex": 16
+    "powerIndex": 16,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 18,
@@ -253,7 +321,11 @@
     "baseAtk": 16832,
     "rewardCoins": 3,
     "rarity": "uncommon",
-    "powerIndex": 17
+    "powerIndex": 17,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 19,
@@ -267,7 +339,11 @@
     "baseHp": 110101,
     "baseAtk": 29039,
     "rewardCoins": 7,
-    "powerIndex": 18
+    "powerIndex": 18,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 20,
@@ -281,7 +357,11 @@
     "baseHp": 193803,
     "baseAtk": 45018,
     "rewardCoins": 5,
-    "powerIndex": 19
+    "powerIndex": 19,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 21,
@@ -296,7 +376,11 @@
     "baseAtk": 68469,
     "rewardCoins": 10,
     "rarity": "rare",
-    "powerIndex": 20
+    "powerIndex": 20,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 22,
@@ -311,7 +395,11 @@
     "baseAtk": 110485,
     "rewardCoins": 12,
     "rarity": "rare",
-    "powerIndex": 21
+    "powerIndex": 21,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 23,
@@ -326,7 +414,11 @@
     "baseAtk": 178741,
     "rewardCoins": 7,
     "rarity": "epic",
-    "powerIndex": 22
+    "powerIndex": 22,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 24,
@@ -341,7 +433,11 @@
     "baseAtk": 286206,
     "rewardCoins": 7,
     "rarity": "epic",
-    "powerIndex": 23
+    "powerIndex": 23,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 25,
@@ -356,7 +452,11 @@
     "baseAtk": 477044,
     "rewardCoins": 8,
     "rarity": "legendary",
-    "powerIndex": 24
+    "powerIndex": 24,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 26,
@@ -371,7 +471,11 @@
     "baseAtk": 820979,
     "rewardCoins": 15,
     "rarity": "rare",
-    "powerIndex": 25
+    "powerIndex": 25,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 27,
@@ -386,7 +490,11 @@
     "baseAtk": 1372139,
     "rewardCoins": 7,
     "rarity": "epic",
-    "powerIndex": 26
+    "powerIndex": 26,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 28,
@@ -401,7 +509,11 @@
     "baseAtk": 2096123,
     "rewardCoins": 7,
     "rarity": "rare",
-    "powerIndex": 27
+    "powerIndex": 27,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 29,
@@ -416,7 +528,11 @@
     "baseAtk": 3772753,
     "rewardCoins": 8,
     "rarity": "uncommon",
-    "powerIndex": 28
+    "powerIndex": 28,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 30,
@@ -431,7 +547,11 @@
     "baseAtk": 6062850,
     "rewardCoins": 12,
     "rarity": "uncommon",
-    "powerIndex": 29
+    "powerIndex": 29,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 31,
@@ -446,7 +566,11 @@
     "baseAtk": 9855961,
     "rewardCoins": 6,
     "rarity": "uncommon",
-    "powerIndex": 30
+    "powerIndex": 30,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 32,
@@ -461,7 +585,11 @@
     "baseAtk": 17393345,
     "rewardCoins": 7,
     "rarity": "rare",
-    "powerIndex": 31
+    "powerIndex": 31,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 33,
@@ -476,7 +604,11 @@
     "baseAtk": 30303687,
     "rewardCoins": 8,
     "rarity": "rare",
-    "powerIndex": 32
+    "powerIndex": 32,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 34,
@@ -491,7 +623,11 @@
     "baseAtk": 51689027,
     "rewardCoins": 7,
     "rarity": "uncommon",
-    "powerIndex": 33
+    "powerIndex": 33,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 35,
@@ -506,7 +642,11 @@
     "baseAtk": 91923584,
     "rewardCoins": 8,
     "rarity": "rare",
-    "powerIndex": 34
+    "powerIndex": 34,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 36,
@@ -521,7 +661,11 @@
     "baseAtk": 143830903,
     "rewardCoins": 4,
     "rarity": "uncommon",
-    "powerIndex": 35
+    "powerIndex": 35,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 37,
@@ -536,7 +680,11 @@
     "baseAtk": 217171461,
     "rewardCoins": 9,
     "rarity": "epic",
-    "powerIndex": 36
+    "powerIndex": 36,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 38,
@@ -551,7 +699,11 @@
     "baseAtk": 331124698,
     "rewardCoins": 7,
     "rarity": "uncommon",
-    "powerIndex": 37
+    "powerIndex": 37,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 39,
@@ -566,7 +718,11 @@
     "baseAtk": 544058704,
     "rewardCoins": 8,
     "rarity": "rare",
-    "powerIndex": 38
+    "powerIndex": 38,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 40,
@@ -581,7 +737,11 @@
     "baseAtk": 888765384,
     "rewardCoins": 8,
     "rarity": "rare",
-    "powerIndex": 39
+    "powerIndex": 39,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 41,
@@ -596,7 +756,11 @@
     "baseAtk": 1348409733,
     "rewardCoins": 9,
     "rarity": "epic",
-    "powerIndex": 40
+    "powerIndex": 40,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 42,
@@ -611,7 +775,11 @@
     "baseAtk": 2028852505,
     "rewardCoins": 9,
     "rarity": "epic",
-    "powerIndex": 41
+    "powerIndex": 41,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 43,
@@ -626,7 +794,22 @@
     "baseAtk": 3144901309,
     "rewardCoins": 10,
     "rarity": "legendary",
-    "powerIndex": 42
+    "powerIndex": 42,
+    "halflife": {
+      "turns": 29,
+      "decayProducts": [
+        {
+          "elementNumber": 44,
+          "probability": 0.9,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 42,
+          "probability": 0.1,
+          "type": "beta"
+        }
+      ]
+    }
   },
   {
     "number": 44,
@@ -641,7 +824,11 @@
     "baseAtk": 5543814349,
     "rewardCoins": 10,
     "rarity": "legendary",
-    "powerIndex": 43
+    "powerIndex": 43,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 45,
@@ -656,7 +843,11 @@
     "baseAtk": 8454431126,
     "rewardCoins": 12,
     "rarity": "legendary",
-    "powerIndex": 44
+    "powerIndex": 44,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 46,
@@ -671,7 +862,11 @@
     "baseAtk": 14134451027,
     "rewardCoins": 12,
     "rarity": "legendary",
-    "powerIndex": 45
+    "powerIndex": 45,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 47,
@@ -686,7 +881,11 @@
     "baseAtk": 25330121367,
     "rewardCoins": 10,
     "rarity": "epic",
-    "powerIndex": 46
+    "powerIndex": 46,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 48,
@@ -701,7 +900,11 @@
     "baseAtk": 39352695490,
     "rewardCoins": 8,
     "rarity": "rare",
-    "powerIndex": 47
+    "powerIndex": 47,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 49,
@@ -716,7 +919,11 @@
     "baseAtk": 64264688140,
     "rewardCoins": 7,
     "rarity": "uncommon",
-    "powerIndex": 48
+    "powerIndex": 48,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 50,
@@ -731,7 +938,11 @@
     "baseAtk": 101877232283,
     "rewardCoins": 20,
     "rarity": "common",
-    "powerIndex": 49
+    "powerIndex": 49,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 51,
@@ -746,7 +957,11 @@
     "baseAtk": 174482858378,
     "rewardCoins": 8,
     "rarity": "rare",
-    "powerIndex": 50
+    "powerIndex": 50,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 52,
@@ -761,7 +976,11 @@
     "baseAtk": 267965557409,
     "rewardCoins": 7,
     "rarity": "uncommon",
-    "powerIndex": 51
+    "powerIndex": 51,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 53,
@@ -776,7 +995,11 @@
     "baseAtk": 459612053157,
     "rewardCoins": 8,
     "rarity": "rare",
-    "powerIndex": 52
+    "powerIndex": 52,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 54,
@@ -791,7 +1014,11 @@
     "baseAtk": 724715131239,
     "rewardCoins": 5,
     "rarity": "uncommon",
-    "powerIndex": 53
+    "powerIndex": 53,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 55,
@@ -806,7 +1033,11 @@
     "baseAtk": 1260378045046,
     "rewardCoins": 10,
     "rarity": "epic",
-    "powerIndex": 54
+    "powerIndex": 54,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 56,
@@ -821,7 +1052,11 @@
     "baseAtk": 2117348667323,
     "rewardCoins": 7,
     "rarity": "uncommon",
-    "powerIndex": 55
+    "powerIndex": 55,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 57,
@@ -836,7 +1071,11 @@
     "baseAtk": 3597926677912,
     "rewardCoins": 9,
     "rarity": "epic",
-    "powerIndex": 56
+    "powerIndex": 56,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 58,
@@ -851,7 +1090,11 @@
     "baseAtk": 6063915161661,
     "rewardCoins": 8,
     "rarity": "rare",
-    "powerIndex": 57
+    "powerIndex": 57,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 59,
@@ -866,7 +1109,11 @@
     "baseAtk": 10664776014421,
     "rewardCoins": 9,
     "rarity": "epic",
-    "powerIndex": 58
+    "powerIndex": 58,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 60,
@@ -881,7 +1128,11 @@
     "baseAtk": 16035034098783,
     "rewardCoins": 10,
     "rarity": "epic",
-    "powerIndex": 59
+    "powerIndex": 59,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 61,
@@ -896,7 +1147,22 @@
     "baseAtk": 28705055316026,
     "rewardCoins": 12,
     "rarity": "legendary",
-    "powerIndex": 60
+    "powerIndex": 60,
+    "halflife": {
+      "turns": 45,
+      "decayProducts": [
+        {
+          "elementNumber": 60,
+          "probability": 0.5,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 62,
+          "probability": 0.5,
+          "type": "beta"
+        }
+      ]
+    }
   },
   {
     "number": 62,
@@ -911,7 +1177,11 @@
     "baseAtk": 45500270891417,
     "rewardCoins": 11,
     "rarity": "legendary",
-    "powerIndex": 61
+    "powerIndex": 61,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 63,
@@ -926,7 +1196,11 @@
     "baseAtk": 70017807725002,
     "rewardCoins": 12,
     "rarity": "legendary",
-    "powerIndex": 62
+    "powerIndex": 62,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 64,
@@ -941,7 +1215,11 @@
     "baseAtk": 123985886870310,
     "rewardCoins": 12,
     "rarity": "legendary",
-    "powerIndex": 63
+    "powerIndex": 63,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 65,
@@ -956,7 +1234,11 @@
     "baseAtk": 215342068174480,
     "rewardCoins": 13,
     "rarity": "legendary",
-    "powerIndex": 64
+    "powerIndex": 64,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 66,
@@ -971,7 +1253,11 @@
     "baseAtk": 324451982550039,
     "rewardCoins": 13,
     "rarity": "legendary",
-    "powerIndex": 65
+    "powerIndex": 65,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 67,
@@ -986,7 +1272,11 @@
     "baseAtk": 548603545414012,
     "rewardCoins": 14,
     "rarity": "legendary",
-    "powerIndex": 66
+    "powerIndex": 66,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 68,
@@ -1001,7 +1291,11 @@
     "baseAtk": 979797167330705,
     "rewardCoins": 14,
     "rarity": "legendary",
-    "powerIndex": 67
+    "powerIndex": 67,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 69,
@@ -1016,7 +1310,11 @@
     "baseAtk": 1511935232397642,
     "rewardCoins": 15,
     "rarity": "legendary",
-    "powerIndex": 68
+    "powerIndex": 68,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 70,
@@ -1031,7 +1329,11 @@
     "baseAtk": 2650545419644601,
     "rewardCoins": 15,
     "rarity": "legendary",
-    "powerIndex": 69
+    "powerIndex": 69,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 71,
@@ -1046,7 +1348,11 @@
     "baseAtk": 4181940924363017,
     "rewardCoins": 16,
     "rarity": "legendary",
-    "powerIndex": 70
+    "powerIndex": 70,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 72,
@@ -1061,7 +1367,11 @@
     "baseAtk": 6611993939307722,
     "rewardCoins": 16,
     "rarity": "legendary",
-    "powerIndex": 71
+    "powerIndex": 71,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 73,
@@ -1076,7 +1386,11 @@
     "baseAtk": "10064265840057426",
     "rewardCoins": 17,
     "rarity": "legendary",
-    "powerIndex": 72
+    "powerIndex": 72,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 74,
@@ -1091,7 +1405,11 @@
     "baseAtk": "17195489159761152",
     "rewardCoins": 18,
     "rarity": "legendary",
-    "powerIndex": 73
+    "powerIndex": 73,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 75,
@@ -1106,7 +1424,11 @@
     "baseAtk": "28639294631660224",
     "rewardCoins": 20,
     "rarity": "legendary",
-    "powerIndex": 74
+    "powerIndex": 74,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 76,
@@ -1121,7 +1443,11 @@
     "baseAtk": "51452462526345460",
     "rewardCoins": 20,
     "rarity": "legendary",
-    "powerIndex": 75
+    "powerIndex": 75,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 77,
@@ -1136,7 +1462,11 @@
     "baseAtk": "87188932727399200",
     "rewardCoins": 22,
     "rarity": "legendary",
-    "powerIndex": 76
+    "powerIndex": 76,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 78,
@@ -1151,7 +1481,11 @@
     "baseAtk": "143137126753719840",
     "rewardCoins": 25,
     "rarity": "legendary",
-    "powerIndex": 77
+    "powerIndex": 77,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 79,
@@ -1166,7 +1500,11 @@
     "baseAtk": "231616658184964500",
     "rewardCoins": 80,
     "rarity": "legendary",
-    "powerIndex": 78
+    "powerIndex": 78,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 80,
@@ -1181,7 +1519,11 @@
     "baseAtk": "360472321516202560",
     "rewardCoins": 12,
     "rarity": "epic",
-    "powerIndex": 79
+    "powerIndex": 79,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 81,
@@ -1196,7 +1538,11 @@
     "baseAtk": "623849818524391300",
     "rewardCoins": 10,
     "rarity": "epic",
-    "powerIndex": 80
+    "powerIndex": 80,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 82,
@@ -1211,7 +1557,11 @@
     "baseAtk": "999369442345161100",
     "rewardCoins": 8,
     "rarity": "common",
-    "powerIndex": 81
+    "powerIndex": 81,
+    "halflife": {
+      "turns": 0,
+      "decayProducts": []
+    }
   },
   {
     "number": 83,
@@ -1226,7 +1576,22 @@
     "baseAtk": "1635635964170795800",
     "rewardCoins": 9,
     "rarity": "uncommon",
-    "powerIndex": 82
+    "powerIndex": 82,
+    "halflife": {
+      "turns": 66,
+      "decayProducts": [
+        {
+          "elementNumber": 81,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 84,
+          "probability": 0.3,
+          "type": "beta"
+        }
+      ]
+    }
   },
   {
     "number": 84,
@@ -1241,7 +1606,22 @@
     "baseAtk": "2512675423671290000",
     "rewardCoins": 15,
     "rarity": "legendary",
-    "powerIndex": 83
+    "powerIndex": 83,
+    "halflife": {
+      "turns": 67,
+      "decayProducts": [
+        {
+          "elementNumber": 82,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 85,
+          "probability": 0.3,
+          "type": "beta"
+        }
+      ]
+    }
   },
   {
     "number": 85,
@@ -1256,7 +1636,22 @@
     "baseAtk": "4361854076363609000",
     "rewardCoins": 18,
     "rarity": "legendary",
-    "powerIndex": 84
+    "powerIndex": 84,
+    "halflife": {
+      "turns": 67,
+      "decayProducts": [
+        {
+          "elementNumber": 83,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 86,
+          "probability": 0.3,
+          "type": "beta"
+        }
+      ]
+    }
   },
   {
     "number": 86,
@@ -1271,7 +1666,22 @@
     "baseAtk": "7023437578470865000",
     "rewardCoins": 12,
     "rarity": "epic",
-    "powerIndex": 85
+    "powerIndex": 85,
+    "halflife": {
+      "turns": 68,
+      "decayProducts": [
+        {
+          "elementNumber": 84,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 87,
+          "probability": 0.3,
+          "type": "beta"
+        }
+      ]
+    }
   },
   {
     "number": 87,
@@ -1286,7 +1696,22 @@
     "baseAtk": "11530072708919327000",
     "rewardCoins": 20,
     "rarity": "legendary",
-    "powerIndex": 86
+    "powerIndex": 86,
+    "halflife": {
+      "turns": 68,
+      "decayProducts": [
+        {
+          "elementNumber": 85,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 88,
+          "probability": 0.3,
+          "type": "beta"
+        }
+      ]
+    }
   },
   {
     "number": 88,
@@ -1301,7 +1726,22 @@
     "baseAtk": "19904165310905467000",
     "rewardCoins": 18,
     "rarity": "legendary",
-    "powerIndex": 87
+    "powerIndex": 87,
+    "halflife": {
+      "turns": 69,
+      "decayProducts": [
+        {
+          "elementNumber": 86,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 89,
+          "probability": 0.3,
+          "type": "beta"
+        }
+      ]
+    }
   },
   {
     "number": 89,
@@ -1316,7 +1756,22 @@
     "baseAtk": "35444660132078297000",
     "rewardCoins": 20,
     "rarity": "legendary",
-    "powerIndex": 88
+    "powerIndex": 88,
+    "halflife": {
+      "turns": 69,
+      "decayProducts": [
+        {
+          "elementNumber": 87,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 90,
+          "probability": 0.3,
+          "type": "beta"
+        }
+      ]
+    }
   },
   {
     "number": 90,
@@ -1331,7 +1786,32 @@
     "baseAtk": "58231864835886480000",
     "rewardCoins": 22,
     "rarity": "legendary",
-    "powerIndex": 89
+    "powerIndex": 89,
+    "halflife": {
+      "turns": 70,
+      "decayProducts": [
+        {
+          "elementNumber": 88,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 91,
+          "probability": 0.3,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 36,
+          "probability": 0.1,
+          "type": "fission"
+        },
+        {
+          "elementNumber": 54,
+          "probability": 0.1,
+          "type": "fission"
+        }
+      ]
+    }
   },
   {
     "number": 91,
@@ -1346,7 +1826,32 @@
     "baseAtk": "93149354284068810000",
     "rewardCoins": 25,
     "rarity": "legendary",
-    "powerIndex": 90
+    "powerIndex": 90,
+    "halflife": {
+      "turns": 80,
+      "decayProducts": [
+        {
+          "elementNumber": 89,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 92,
+          "probability": 0.3,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 36,
+          "probability": 0.1,
+          "type": "fission"
+        },
+        {
+          "elementNumber": 55,
+          "probability": 0.1,
+          "type": "fission"
+        }
+      ]
+    }
   },
   {
     "number": 92,
@@ -1361,7 +1866,32 @@
     "baseAtk": "157138567959835440000",
     "rewardCoins": 150,
     "rarity": "legendary",
-    "powerIndex": 91
+    "powerIndex": 91,
+    "halflife": {
+      "turns": 81,
+      "decayProducts": [
+        {
+          "elementNumber": 90,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 93,
+          "probability": 0.3,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 36,
+          "probability": 0.1,
+          "type": "fission"
+        },
+        {
+          "elementNumber": 56,
+          "probability": 0.1,
+          "type": "fission"
+        }
+      ]
+    }
   },
   {
     "number": 93,
@@ -1376,7 +1906,32 @@
     "baseAtk": "262968750559854430000",
     "rewardCoins": 28,
     "rarity": "legendary",
-    "powerIndex": 92
+    "powerIndex": 92,
+    "halflife": {
+      "turns": 81,
+      "decayProducts": [
+        {
+          "elementNumber": 91,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 94,
+          "probability": 0.3,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 37,
+          "probability": 0.1,
+          "type": "fission"
+        },
+        {
+          "elementNumber": 56,
+          "probability": 0.1,
+          "type": "fission"
+        }
+      ]
+    }
   },
   {
     "number": 94,
@@ -1391,7 +1946,32 @@
     "baseAtk": "449667573803080500000",
     "rewardCoins": 30,
     "rarity": "legendary",
-    "powerIndex": 93
+    "powerIndex": 93,
+    "halflife": {
+      "turns": 82,
+      "decayProducts": [
+        {
+          "elementNumber": 92,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 95,
+          "probability": 0.3,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 37,
+          "probability": 0.1,
+          "type": "fission"
+        },
+        {
+          "elementNumber": 57,
+          "probability": 0.1,
+          "type": "fission"
+        }
+      ]
+    }
   },
   {
     "number": 95,
@@ -1406,7 +1986,32 @@
     "baseAtk": "806325745963666900000",
     "rewardCoins": 32,
     "rarity": "legendary",
-    "powerIndex": 94
+    "powerIndex": 94,
+    "halflife": {
+      "turns": 82,
+      "decayProducts": [
+        {
+          "elementNumber": 93,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 96,
+          "probability": 0.3,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 38,
+          "probability": 0.1,
+          "type": "fission"
+        },
+        {
+          "elementNumber": 57,
+          "probability": 0.1,
+          "type": "fission"
+        }
+      ]
+    }
   },
   {
     "number": 96,
@@ -1421,7 +2026,32 @@
     "baseAtk": "1450356295522144500000",
     "rewardCoins": 35,
     "rarity": "legendary",
-    "powerIndex": 95
+    "powerIndex": 95,
+    "halflife": {
+      "turns": 83,
+      "decayProducts": [
+        {
+          "elementNumber": 94,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 97,
+          "probability": 0.3,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 38,
+          "probability": 0.1,
+          "type": "fission"
+        },
+        {
+          "elementNumber": 58,
+          "probability": 0.1,
+          "type": "fission"
+        }
+      ]
+    }
   },
   {
     "number": 97,
@@ -1436,7 +2066,32 @@
     "baseAtk": "2287900889042776800000",
     "rewardCoins": 35,
     "rarity": "legendary",
-    "powerIndex": 96
+    "powerIndex": 96,
+    "halflife": {
+      "turns": 83,
+      "decayProducts": [
+        {
+          "elementNumber": 95,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 98,
+          "probability": 0.3,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 38,
+          "probability": 0.1,
+          "type": "fission"
+        },
+        {
+          "elementNumber": 59,
+          "probability": 0.1,
+          "type": "fission"
+        }
+      ]
+    }
   },
   {
     "number": 98,
@@ -1451,7 +2106,32 @@
     "baseAtk": "3950069823877667000000",
     "rewardCoins": 38,
     "rarity": "legendary",
-    "powerIndex": 97
+    "powerIndex": 97,
+    "halflife": {
+      "turns": 84,
+      "decayProducts": [
+        {
+          "elementNumber": 96,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 99,
+          "probability": 0.3,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 39,
+          "probability": 0.1,
+          "type": "fission"
+        },
+        {
+          "elementNumber": 59,
+          "probability": 0.1,
+          "type": "fission"
+        }
+      ]
+    }
   },
   {
     "number": 99,
@@ -1466,7 +2146,32 @@
     "baseAtk": "6062374327143754000000",
     "rewardCoins": 40,
     "rarity": "legendary",
-    "powerIndex": 98
+    "powerIndex": 98,
+    "halflife": {
+      "turns": 84,
+      "decayProducts": [
+        {
+          "elementNumber": 97,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 100,
+          "probability": 0.3,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 39,
+          "probability": 0.1,
+          "type": "fission"
+        },
+        {
+          "elementNumber": 60,
+          "probability": 0.1,
+          "type": "fission"
+        }
+      ]
+    }
   },
   {
     "number": 100,
@@ -1481,7 +2186,32 @@
     "baseAtk": "9734735018466172000000",
     "rewardCoins": 42,
     "rarity": "legendary",
-    "powerIndex": 99
+    "powerIndex": 99,
+    "halflife": {
+      "turns": 85,
+      "decayProducts": [
+        {
+          "elementNumber": 98,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 101,
+          "probability": 0.3,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 40,
+          "probability": 0.1,
+          "type": "fission"
+        },
+        {
+          "elementNumber": 60,
+          "probability": 0.1,
+          "type": "fission"
+        }
+      ]
+    }
   },
   {
     "number": 101,
@@ -1496,7 +2226,32 @@
     "baseAtk": "16275408906292516000000",
     "rewardCoins": 45,
     "rarity": "legendary",
-    "powerIndex": 100
+    "powerIndex": 100,
+    "halflife": {
+      "turns": 85,
+      "decayProducts": [
+        {
+          "elementNumber": 99,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 102,
+          "probability": 0.3,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 40,
+          "probability": 0.1,
+          "type": "fission"
+        },
+        {
+          "elementNumber": 61,
+          "probability": 0.1,
+          "type": "fission"
+        }
+      ]
+    }
   },
   {
     "number": 102,
@@ -1511,7 +2266,32 @@
     "baseAtk": "28941026147128844000000",
     "rewardCoins": 45,
     "rarity": "legendary",
-    "powerIndex": 101
+    "powerIndex": 101,
+    "halflife": {
+      "turns": 86,
+      "decayProducts": [
+        {
+          "elementNumber": 100,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 103,
+          "probability": 0.3,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 40,
+          "probability": 0.1,
+          "type": "fission"
+        },
+        {
+          "elementNumber": 62,
+          "probability": 0.1,
+          "type": "fission"
+        }
+      ]
+    }
   },
   {
     "number": 103,
@@ -1526,7 +2306,32 @@
     "baseAtk": "49907272602364650000000",
     "rewardCoins": 48,
     "rarity": "legendary",
-    "powerIndex": 102
+    "powerIndex": 102,
+    "halflife": {
+      "turns": 86,
+      "decayProducts": [
+        {
+          "elementNumber": 101,
+          "probability": 0.4,
+          "type": "alpha"
+        },
+        {
+          "elementNumber": 104,
+          "probability": 0.3,
+          "type": "beta"
+        },
+        {
+          "elementNumber": 41,
+          "probability": 0.1,
+          "type": "fission"
+        },
+        {
+          "elementNumber": 62,
+          "probability": 0.1,
+          "type": "fission"
+        }
+      ]
+    }
   },
   {
     "number": 104,
@@ -1541,7 +2346,17 @@
     "baseAtk": "77516721906840090000000",
     "rewardCoins": 50,
     "rarity": "legendary",
-    "powerIndex": 103
+    "powerIndex": 103,
+    "halflife": {
+      "turns": 10,
+      "decayProducts": [
+        {
+          "elementNumber": 102,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   },
   {
     "number": 105,
@@ -1556,7 +2371,17 @@
     "baseAtk": "136129835331840650000000",
     "rewardCoins": 52,
     "rarity": "legendary",
-    "powerIndex": 104
+    "powerIndex": 104,
+    "halflife": {
+      "turns": 10,
+      "decayProducts": [
+        {
+          "elementNumber": 103,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   },
   {
     "number": 106,
@@ -1571,7 +2396,17 @@
     "baseAtk": "215159561868971870000000",
     "rewardCoins": 55,
     "rarity": "legendary",
-    "powerIndex": 105
+    "powerIndex": 105,
+    "halflife": {
+      "turns": 10,
+      "decayProducts": [
+        {
+          "elementNumber": 104,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   },
   {
     "number": 107,
@@ -1586,7 +2421,17 @@
     "baseAtk": "355271852704438530000000",
     "rewardCoins": 55,
     "rarity": "legendary",
-    "powerIndex": 106
+    "powerIndex": 106,
+    "halflife": {
+      "turns": 10,
+      "decayProducts": [
+        {
+          "elementNumber": 105,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   },
   {
     "number": 108,
@@ -1601,7 +2446,17 @@
     "baseAtk": "539389936296515900000000",
     "rewardCoins": 58,
     "rarity": "legendary",
-    "powerIndex": 107
+    "powerIndex": 107,
+    "halflife": {
+      "turns": 3,
+      "decayProducts": [
+        {
+          "elementNumber": 106,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   },
   {
     "number": 109,
@@ -1616,7 +2471,17 @@
     "baseAtk": "915946396910265400000000",
     "rewardCoins": 60,
     "rarity": "legendary",
-    "powerIndex": 108
+    "powerIndex": 108,
+    "halflife": {
+      "turns": 3,
+      "decayProducts": [
+        {
+          "elementNumber": 107,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   },
   {
     "number": 110,
@@ -1631,7 +2496,17 @@
     "baseAtk": "1402964883160793300000000",
     "rewardCoins": 62,
     "rarity": "legendary",
-    "powerIndex": 109
+    "powerIndex": 109,
+    "halflife": {
+      "turns": 3,
+      "decayProducts": [
+        {
+          "elementNumber": 108,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   },
   {
     "number": 111,
@@ -1646,7 +2521,17 @@
     "baseAtk": "2438347207564253300000000",
     "rewardCoins": 65,
     "rarity": "legendary",
-    "powerIndex": 110
+    "powerIndex": 110,
+    "halflife": {
+      "turns": 4,
+      "decayProducts": [
+        {
+          "elementNumber": 109,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   },
   {
     "number": 112,
@@ -1661,7 +2546,17 @@
     "baseAtk": "3742500121521922000000000",
     "rewardCoins": 65,
     "rarity": "legendary",
-    "powerIndex": 111
+    "powerIndex": 111,
+    "halflife": {
+      "turns": 3,
+      "decayProducts": [
+        {
+          "elementNumber": 110,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   },
   {
     "number": 113,
@@ -1676,7 +2571,17 @@
     "baseAtk": "5711913636726907000000000",
     "rewardCoins": 68,
     "rarity": "legendary",
-    "powerIndex": 112
+    "powerIndex": 112,
+    "halflife": {
+      "turns": 3,
+      "decayProducts": [
+        {
+          "elementNumber": 111,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   },
   {
     "number": 114,
@@ -1691,7 +2596,17 @@
     "baseAtk": "10048799314369917000000000",
     "rewardCoins": 70,
     "rarity": "legendary",
-    "powerIndex": 113
+    "powerIndex": 113,
+    "halflife": {
+      "turns": 2,
+      "decayProducts": [
+        {
+          "elementNumber": 112,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   },
   {
     "number": 115,
@@ -1706,7 +2621,17 @@
     "baseAtk": "17391506462544153000000000",
     "rewardCoins": 72,
     "rarity": "legendary",
-    "powerIndex": 114
+    "powerIndex": 114,
+    "halflife": {
+      "turns": 2,
+      "decayProducts": [
+        {
+          "elementNumber": 113,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   },
   {
     "number": 116,
@@ -1721,7 +2646,17 @@
     "baseAtk": "29781434203962322000000000",
     "rewardCoins": 75,
     "rarity": "legendary",
-    "powerIndex": 115
+    "powerIndex": 115,
+    "halflife": {
+      "turns": 1,
+      "decayProducts": [
+        {
+          "elementNumber": 114,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   },
   {
     "number": 117,
@@ -1736,7 +2671,17 @@
     "baseAtk": "52567473949811640000000000",
     "rewardCoins": 75,
     "rarity": "legendary",
-    "powerIndex": 116
+    "powerIndex": 116,
+    "halflife": {
+      "turns": 1,
+      "decayProducts": [
+        {
+          "elementNumber": 115,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   },
   {
     "number": 118,
@@ -1751,6 +2696,16 @@
     "baseAtk": "82037626771935510000000000",
     "rewardCoins": 500,
     "rarity": "legendary",
-    "powerIndex": 117
+    "powerIndex": 117,
+    "halflife": {
+      "turns": 1,
+      "decayProducts": [
+        {
+          "elementNumber": 116,
+          "probability": 1.0,
+          "type": "alpha"
+        }
+      ]
+    }
   }
 ]

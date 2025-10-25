@@ -145,12 +145,29 @@ const handleDrop = event => {
     if (laneSlot && draggedCardData.origin === 'hand') {
         // 전장에 카드 배치
         const idx = parseInt(laneSlot.id.split('-')[1],10);
+        
+        // 디버깅을 위한 로그 추가
+        console.log('handleDrop: Searching for card with ID:', draggedCardData.id);
+        console.log('handleDrop: Current playerHand:', gameState.playerHand);
+        console.log('handleDrop: PlayerHand length:', gameState.playerHand ? gameState.playerHand.length : 'undefined');
+        
         const card = gameState.playerHand.find(c=>c.id===draggedCardData.id);
         console.log('handleDrop: Placing card on battlefield, lane:', idx, 'card:', card);
+        
         if (card) {
             placeCardOnBattlefield(card, idx, 'player');
         } else {
             console.error('handleDrop: Card not found in player hand:', draggedCardData.id);
+            console.error('handleDrop: Available card IDs:', gameState.playerHand.map(c => c.id));
+            
+            // 폴백: 첫 번째 카드 사용 (임시 해결책)
+            if (gameState.playerHand && gameState.playerHand.length > 0) {
+                console.log('handleDrop: Using first available card as fallback');
+                const fallbackCard = gameState.playerHand[0];
+                placeCardOnBattlefield(fallbackCard, idx, 'player');
+            } else {
+                console.error('handleDrop: No cards available in player hand');
+            }
         }
     } else {
         console.log('handleDrop: No valid drop target found');

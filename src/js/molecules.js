@@ -5,6 +5,9 @@ class Molecule {
     this.elements = elements;
     this.effect = effect;
     this.icon = this.generateIcon();
+    this.starLevel = 0; // 분자 별 레벨
+    this.starExperience = 0; // 별 경험치
+    this.starRequiredExp = 100; // 다음 별 레벨까지 필요한 경험치
   }
 
   generateIcon() {
@@ -63,10 +66,30 @@ class Molecule {
 
     const handler = effectHandlers[this.effect.type];
     if (handler) {
-      return handler.call(this, sourceCard, targetCard, battlefield);
+      const result = handler.call(this, sourceCard, targetCard, battlefield);
+      
+      
+      return result;
     }
     
     return false;
+  }
+
+  // 효과 타입 반환 (분자별 시스템용)
+  getEffectType() {
+    const damageEffects = ['damage', 'explosive', 'damage_over_time', 'corrosive', 'explosive_damage', 'acid_damage', 'base_damage', 'burn', 'acid_rain', 'acid_splash', 'spontaneous_combustion', 'toxic_gas', 'caustic'];
+    const healingEffects = ['heal_over_time', 'regeneration', 'dna_repair', 'antioxidant'];
+    const boostEffects = ['boost_attack', 'boost_health', 'energy_boost', 'fortification', 'catalyst'];
+    
+    if (damageEffects.includes(this.effect.type)) {
+      return 'damage';
+    } else if (healingEffects.includes(this.effect.type)) {
+      return 'healing';
+    } else if (boostEffects.includes(this.effect.type)) {
+      return 'boost';
+    }
+    
+    return 'other';
   }
 
   applyBoostAttack(sourceCard, targetCard) {
@@ -719,8 +742,19 @@ function createMoleculeFromMultipleElements(elements) {
     const req = mol.elementCounts || {};
     const selKeys = Object.keys(selCounts);
     const reqKeys = Object.keys(req);
+    
+    // 원소 종류 수가 다르면 매칭되지 않음
     if (selKeys.length !== reqKeys.length) return false;
-    return reqKeys.every(sym => selCounts[sym] === req[sym]);
+    
+    // 각 원소의 개수가 정확히 일치해야 함
+    const exactMatch = reqKeys.every(sym => selCounts[sym] === req[sym]);
+    
+    // 추가 검증: 단일 원소로만 구성된 분자는 최소 2개 이상의 원소가 필요
+    if (reqKeys.length === 1 && Object.values(req)[0] === 1) {
+      return false; // 단일 원소 1개로는 분자를 만들 수 없음
+    }
+    
+    return exactMatch;
   });
 
   if (matchingMolecule) return createCardFromMolecule(matchingMolecule);
@@ -877,6 +911,9 @@ function createCardFromMolecule(moleculeData) {
       });
     }
   };
+
+
+  return moleculeCard;
 }
 
 // 자동 분자 합성 확인 함수

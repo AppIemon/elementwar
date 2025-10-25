@@ -119,6 +119,7 @@ class MoleculeGuide {
         }
       });
 
+
       // 분자 상세 모달 닫기 버튼
       const closeMoleculeViewer = document.getElementById('close-molecule-viewer');
       if (closeMoleculeViewer) {
@@ -267,9 +268,11 @@ class MoleculeGuide {
             <div class="text-xs text-gray-400">
               <span class="px-2 py-1 bg-gray-600 rounded">${category}</span>
             </div>
-            <button class="molecule-detail-btn text-blue-400 hover:text-blue-300 text-sm" data-molecule-id="${molecule.id}">
-              자세히 보기
-            </button>
+            <div class="flex gap-2">
+              <button class="molecule-detail-btn text-blue-400 hover:text-blue-300 text-sm" data-molecule-id="${molecule.id}">
+                자세히 보기
+              </button>
+            </div>
           </div>
         </div>
       `;
@@ -596,6 +599,7 @@ class MoleculeGuide {
       console.error('[MoleculeGuide] Error showing molecule detail:', error);
     }
   }
+
 }
 
 // 전역 인스턴스 생성

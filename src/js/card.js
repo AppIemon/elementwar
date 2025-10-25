@@ -20,6 +20,24 @@ class ElementCard {
     this.components = [];
     this.name = (element && element.name) || 'Unknown';
     this.moleculeId = null; // Store molecule ID if it's a synthesis card
+    
+    // 상태 이상 시스템
+    this.statusEffects = [];
+    this.canAct = true; // 행동 가능 여부
+    this.atkMultiplier = 1; // 공격력 배수
+    this.defMultiplier = 1; // 방어력 배수
+    this.resistances = {}; // 저항력 (fire: 0.5 = 화염 피해 50% 감소)
+    this.immunities = []; // 면역 상태 (['stun', 'freeze'])
+    
+    // 반감기 시스템 정보 추가
+    if (window.halfLifeSystem && element) {
+      this.halflife = window.halfLifeSystem.addHalfLifeToCard(this).halflife;
+    }
+
+    // 별 레벨 초기화
+    this.starLevel = 0;
+    this.starExperience = 0;
+    this.starRequiredExp = 100;
   }
 
   getHealthRatio() {
@@ -47,6 +65,7 @@ class ElementCard {
   }
 
   processTurnEffects() {
+    // 기존 효과 처리
     this.effects = this.effects.filter(effect => {
       if (effect.duration !== undefined) {
         effect.duration--;
@@ -63,6 +82,143 @@ class ElementCard {
       }
       return true;
     });
+
+    // 상태 이상 효과 처리
+    if (window.statusEffectSystem) {
+      window.statusEffectSystem.processTurnEffects(this);
+    }
+  }
+
+  // 상태 이상 추가
+  addStatusEffect(effectName, duration, data = {}) {
+    // 면역 체크
+    if (this.immunities.includes(effectName)) {
+      return false;
+    }
+
+    // 기존 효과가 있으면 지속 시간 갱신
+    const existingEffect = this.statusEffects.find(e => e.name === effectName);
+    if (existingEffect) {
+      existingEffect.duration = Math.max(existingEffect.duration, duration);
+      Object.assign(existingEffect, data);
+      return true;
+    }
+
+    // 새 효과 추가
+    this.statusEffects.push({
+      name: effectName,
+      duration: duration,
+      ...data
+    });
+
+    return true;
+  }
+
+  // 상태 이상 제거
+  removeStatusEffect(effectName) {
+    const index = this.statusEffects.findIndex(e => e.name === effectName);
+    if (index !== -1) {
+      const effect = this.statusEffects[index];
+      const statusEffectInfo = window.statusEffectSystem?.getEffectInfo(effectName);
+      if (statusEffectInfo?.onRemove) {
+        statusEffectInfo.onRemove(this);
+      }
+      this.statusEffects.splice(index, 1);
+      return true;
+    }
+    return false;
+  }
+
+  // 분자를 에너지로 변환 (기본 에너지 계산 사용)
+  convertToEnergy() {
+    if (this.type === 'molecule') {
+      const energyGained = calculateMoleculeEnergyValue(this);
+      if (energyGained > 0) {
+        // 에너지 추가
+        if (typeof addEnergy === 'function') {
+          addEnergy(energyGained, 'player');
+        } else {
+          if (!gameState.energy) gameState.energy = 0;
+          gameState.energy += energyGained;
+          
+          // fusionSystem과 동기화
+          if (gameState.fusionSystem) {
+            gameState.fusionSystem.energy = gameState.energy;
+          }
+        }
+        
+        showMessage(`🧪 ${this.name}이(가) ${energyGained} 에너지로 변환되었습니다!`, 'energy');
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // 상태 이상 확인
+  hasStatusEffect(effectName) {
+    return this.statusEffects.some(e => e.name === effectName);
+  }
+
+  // 상태 이상 정보 가져오기
+  getStatusEffect(effectName) {
+    return this.statusEffects.find(e => e.name === effectName);
+  }
+
+  // 피해 받기 (상태 이상 효과 포함)
+  takeDamage(damage, damageType = 'normal') {
+    if (window.statusEffectSystem) {
+      damage = window.statusEffectSystem.processDamageEffects(this, damage, damageType);
+    }
+
+    // 저항력 적용
+    if (this.resistances[damageType]) {
+      damage = Math.floor(damage * this.resistances[damageType]);
+    }
+
+    // 방어력 적용
+    const finalDamage = Math.max(1, damage - (this.armor || 0));
+    this.hp = Math.max(0, this.hp - finalDamage);
+
+    return finalDamage;
+  }
+
+  // 회복
+  heal(amount) {
+    const oldHp = this.hp;
+    this.hp = Math.min(this.maxHp, this.hp + amount);
+    return this.hp - oldHp;
+  }
+
+  // 공격력 계산 (상태 이상 포함)
+  getAttackPower() {
+    let attackPower = this.atk;
+    
+    // 공격력 배수 적용
+    attackPower *= (this.atkMultiplier || 1);
+    
+    // 상태 이상 효과 적용
+    const rageEffect = this.getStatusEffect('rage');
+    if (rageEffect) {
+      attackPower *= 1.5;
+    }
+
+    return Math.floor(attackPower);
+  }
+
+  // 방어력 계산 (상태 이상 포함)
+  getDefensePower() {
+    let defensePower = this.armor || 0;
+    
+    // 방어력 배수 적용
+    defensePower *= (this.defMultiplier || 1);
+    
+    // 상태 이상 효과 적용
+    const armorEffect = this.getStatusEffect('armor');
+    if (armorEffect) {
+      defensePower += armorEffect.armorAmount || 0;
+    }
+
+    return Math.floor(defensePower);
   }
 
   getSpecialAbility() {
@@ -105,10 +261,10 @@ class ElementCard {
 }
 
 function createRandomCard() {
-  // 현재까지 발견된 최상위 원소 번호의 절반까지만 등장
+  // 현재까지 발견된 최상위 원소 번호 - 2까지만 등장
   const maxDiscovered = (typeof getMaxDiscoveredElementNumber === 'function') ? getMaxDiscoveredElementNumber() : 1;
-  // 최소 cap을 2로 설정하여 H, He 모두 나올 수 있도록 함
-  const cap = Math.max(2, Math.floor(maxDiscovered / 2));
+  // 최소 cap을 1로 설정하여 H는 항상 나올 수 있도록 함
+  const cap = Math.max(1, maxDiscovered - 2);
   const elementsWithWeights = gameState.elementsData
     .filter(element => typeof element.number === 'number' && element.number <= cap)
     .map(element => {
@@ -198,6 +354,14 @@ function addCardToHand(card, player) {
       card.synergyBonus = bonus.bonus;
     });
   });
+
+  // 온라인 게임에서 서버에 카드 뽑기 알림
+  if (window.onlineGameState?.isOnline && window.onlineMatching && player === 'player') {
+    console.log('온라인 게임: 카드 뽑기 서버 동기화', card.name);
+    window.onlineMatching.syncCardDraw([card]).catch(error => {
+      console.error('카드 뽑기 동기화 실패:', error);
+    });
+  }
 }
 
 function createCardElement(card, isInHand = true) {
@@ -210,8 +374,8 @@ function createCardElement(card, isInHand = true) {
   let displaySymbol, displayNumber, displayName;
   
   // 카드 타입을 더 정확하게 판별
-  if (isMolecule || card.moleculeId) {
-    // 분자 카드
+  if ((isMolecule || card.moleculeId) && card.elements && card.elements.length > 1) {
+    // 실제 분자 카드 (2개 이상의 원소로 구성)
     displaySymbol = card.symbol || card.name || '?';
     displayNumber = '분자';
     displayName = card.name || '분자';
@@ -221,22 +385,44 @@ function createCardElement(card, isInHand = true) {
     displayNumber = '합성';
     displayName = card.name || '합성물';
   } else {
-    // 일반 원소 카드
+    // 일반 원소 카드 (단일 원소로 구성된 "분자"도 포함)
     displaySymbol = element.symbol || '?';
     displayNumber = element.number ? element.number + '번' : '';
     displayName = element.name || '카드';
   }
 
   let backgroundStyle = element?.color || 'bg-gray-700';
-  if (isMolecule) {
+  if ((isMolecule || card.moleculeId) && card.elements && card.elements.length > 1) {
+    // 실제 분자 카드만 분자 스타일 적용
     backgroundStyle = `${card.color || 'bg-purple-600'} molecule-flashy`;
   } else if (isSynth) {
     backgroundStyle = 'synthesis-card';
   }
 
+  // 온라인 대전에서 상대방 카드인지 미리 확인
+  let isOpponentCard = false;
+  if (window.onlineGameState?.isOnline && !isInHand) {
+    // 온라인 대전에서는 computer 슬롯의 카드가 상대방 플레이어의 카드
+    if (card.owner === 'computer' || card.isOpponentCard === true) {
+      isOpponentCard = true;
+      console.log('온라인 대전 상대방 카드 감지:', card.name, 'owner:', card.owner, 'isOpponentCard:', card.isOpponentCard);
+    }
+  }
+
   cardElement.className = `card h-32 w-24 ${backgroundStyle} rounded-lg shadow-lg flex flex-col items-center justify-between p-2 text-white relative`;
   cardElement.setAttribute('data-card-id', card.id);
   cardElement.id = card.id;
+  
+  // 온라인 대전에서 상대방 카드는 반전 표시
+  if (isOpponentCard) {
+    cardElement.style.transform = 'scaleX(-1)';
+    cardElement.style.filter = 'hue-rotate(180deg)';
+  }
+  
+  // 세로 반전 적용 (isFlipped 속성이 있는 경우)
+  if (card.isFlipped) {
+    cardElement.style.transform = (cardElement.style.transform || '') + ' scaleY(-1)';
+  }
 
   // 원소별 실제 색상 적용
   if (!isSynth && element.symbol && window.elementColorSystem) {
@@ -253,12 +439,33 @@ function createCardElement(card, isInHand = true) {
     : ((card.hp && card.maxHp) ? (card.hp / card.maxHp) : 1);
   const healthPercentage = Math.max(0, Math.min(100, healthRatio * 100));
 
+  // 소유자 정보 표시 (온라인 대전에서 상대방 카드는 반전 표시)
+  let ownerText = '';
+  let ownerClass = '';
+  
+  if (card.owner === 'player') {
+    ownerText = '플레이어';
+    ownerClass = 'text-blue-300';
+  } else if (card.owner === 'computer') {
+    // 온라인 대전과 오프라인 게임 구분
+    if (window.onlineGameState?.isOnline) {
+      // 온라인 대전에서는 computer 슬롯이 상대방 플레이어
+      ownerText = '상대방';
+      ownerClass = 'text-red-300';
+    } else {
+      // 오프라인 게임에서는 computer가 AI
+      ownerText = '컴퓨터';
+      ownerClass = 'text-red-300';
+    }
+  }
+
   cardElement.innerHTML = `
     <div class="electron-orbits"></div>
     <div class="text-center relative z-10">
       <div class="text-sm font-bold">${displaySymbol}</div>
       <div class="text-xs">${displayNumber}</div>
       <div class="text-xs mt-1">${displayName}</div>
+      ${ownerText ? `<div class="text-xs ${ownerClass} font-semibold">${ownerText}</div>` : ''}
     </div>
     <div class="w-full mt-auto relative z-10">
       <div class="w-full bg-gray-800 rounded-full h-1.5 mb-1">
@@ -283,6 +490,11 @@ function createCardElement(card, isInHand = true) {
     upgradeElement.className = 'special-ability';
     upgradeElement.textContent = `+${card.upgradeLevel}`;
     cardElement.appendChild(upgradeElement);
+  }
+
+  // 반감기 UI 추가
+  if (window.halfLifeSystem && card.halflife && !card.halflife.isStable) {
+    window.halfLifeSystem.addHalfLifeUI(cardElement, card);
   }
 
   if (isMolecule) {

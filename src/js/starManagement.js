@@ -5,63 +5,70 @@ class StarManagement {
     this.totalStarsCreated = 0; // 총 생성된 별 수
     this.supernovaQueue = []; // 초신성 대기열
     this.supernovaTurnDelay = 3; // 별 생성 후 초신성까지의 턴 수
+    this.fusedStars = { player: [], computer: [] }; // 융합된 별들
   }
 
-  // 별 생성 (Fe 변환)
-  createStarsFromFe(feCount) {
-    const starsGained = Math.floor(feCount / 5);
-    if (starsGained > 0) {
-      this.stars += starsGained;
-      this.totalStarsCreated += starsGained;
-      
-      // 각 별을 초신성 대기열에 추가
-      for (let i = 0; i < starsGained; i++) {
-        this.supernovaQueue.push({
-          id: Date.now() + Math.random(),
-          turnsRemaining: this.supernovaTurnDelay,
-          createdAt: Date.now()
-        });
-      }
-      
-      return starsGained;
-    }
-    return 0;
-  }
+  // 별 생성 (Fe 변환) - 제거됨
+  // createStarsFromFe(feCount) {
+  //   // 철을 별로 변환하는 기능이 제거되었습니다.
+  //   return 0;
+  // }
 
-  // 별 생성 (고원자번호 원소 변환)
-  createStarsFromHeavyElements(elementSymbol, amount) {
-    const element = gameState.elementsData.find(e => e.symbol === elementSymbol);
-    if (!element) return 0;
+  // 별 생성 (고원자번호 원소 변환) - 제거됨
+  // createStarsFromHeavyElements(elementSymbol, amount) {
+  //   // 고원자번호 원소를 별로 변환하는 기능이 제거되었습니다.
+  //   return 0;
+  // }
+
+  // 융합된 별 추가
+  addFusedStar(grade, side = 'player') {
+    const starInfo = window.starCurrency.starGrades[grade];
+    if (!starInfo) return false;
+
+    const fusedStar = {
+      id: Date.now() + Math.random(),
+      grade: grade,
+      size: starInfo.size,
+      elementRange: starInfo.elementRange,
+      createdAt: Date.now(),
+      turnsRemaining: this.supernovaTurnDelay
+    };
+
+    this.fusedStars[side].push(fusedStar);
+    this.stars++;
+    this.totalStarsCreated++;
     
-    // 원자번호가 높을수록 더 많은 별 생성
-    const starsPerElement = Math.floor(element.number / 10);
-    const starsGained = starsPerElement * amount;
-    
-    if (starsGained > 0) {
-      this.stars += starsGained;
-      this.totalStarsCreated += starsGained;
-      
-      // 각 별을 초신성 대기열에 추가
-      for (let i = 0; i < starsGained; i++) {
-        this.supernovaQueue.push({
-          id: Date.now() + Math.random(),
-          turnsRemaining: this.supernovaTurnDelay,
-          createdAt: Date.now()
-        });
-      }
-      
-      return starsGained;
-    }
-    return 0;
+    // 초신성 대기열에도 추가
+    this.supernovaQueue.push({
+      id: fusedStar.id,
+      turnsRemaining: this.supernovaTurnDelay,
+      createdAt: Date.now(),
+      grade: grade,
+      side: side
+    });
+
+    showMessage(`⭐ ${starInfo.name}이 생성되었습니다!`, 'star');
+    return true;
   }
 
   // 턴 진행 시 초신성 처리
   processTurn() {
     const supernovas = [];
     
+    // 헬륨으로 인한 초신성 턴 감소 계산
+    const heliumCount = gameState.fusionSystem ? (gameState.fusionSystem.materials.He || 0) : 0;
+    const turnReduction = Math.floor(heliumCount / 10); // 헬륨 10개당 1턴 감소
+    
     // 대기열의 각 별의 남은 턴 수 감소
     this.supernovaQueue = this.supernovaQueue.map(star => {
+      // 기본 턴 감소
       star.turnsRemaining--;
+      
+      // 헬륨으로 인한 추가 턴 감소
+      if (turnReduction > 0) {
+        star.turnsRemaining = Math.max(0, star.turnsRemaining - turnReduction);
+      }
+      
       if (star.turnsRemaining <= 0) {
         supernovas.push(star);
         this.stars--; // 활성 별 수 감소
@@ -74,26 +81,71 @@ class StarManagement {
       this.performSupernova(star);
     });
     
+    // 헬륨 효과 메시지 표시
+    if (turnReduction > 0 && supernovas.length > 0) {
+      showMessage(`💫 헬륨 ${heliumCount}개로 초신성 턴 ${turnReduction}턴 단축!`, 'star');
+    }
+    
     return supernovas.length;
   }
 
-  // 초신성 실행 (랜덤 원소 획득)
+  // 초신성 실행 (1~26번 원소 획득)
   performSupernova(star) {
-    // 랜덤 원소 생성 (1-92번 원소 중에서)
-    const randomElementNumber = Math.floor(Math.random() * 92) + 1;
-    const element = gameState.elementsData.find(e => e.number === randomElementNumber);
-    
-    if (element) {
-      // 핵융합 시스템에 원소 추가
-      if (gameState.fusionSystem) {
-        gameState.fusionSystem.materials[element.symbol] = (gameState.fusionSystem.materials[element.symbol] || 0) + 1;
+    // 융합된 별인 경우 등급에 따른 원소 범위 사용
+    if (star.grade && star.side) {
+      const starInfo = window.starCurrency.starGrades[star.grade];
+      if (starInfo) {
+        const [minElement, maxElement] = starInfo.elementRange;
+        const randomElementNumber = Math.floor(Math.random() * (maxElement - minElement + 1)) + minElement;
+        const element = gameState.elementsData.find(e => e.number === randomElementNumber);
+        
+        if (element) {
+          // 핵융합 시스템에 원소 추가
+          if (gameState.fusionSystem) {
+            gameState.fusionSystem.materials[element.symbol] = (gameState.fusionSystem.materials[element.symbol] || 0) + 1;
+          }
+          
+          // 메시지 표시
+          showMessage(`🌟 ${starInfo.name} 초신성! ${element.name}(${element.symbol}) 원소를 획득했습니다!`, 'star');
+          
+          // 애니메이션 효과
+          this.showSupernovaAnimation();
+        }
+      } else {
+        // 기본 범위 (1-26번 원소)
+        const randomElementNumber = Math.floor(Math.random() * 26) + 1;
+        const element = gameState.elementsData.find(e => e.number === randomElementNumber);
+        
+        if (element) {
+          // 핵융합 시스템에 원소 추가
+          if (gameState.fusionSystem) {
+            gameState.fusionSystem.materials[element.symbol] = (gameState.fusionSystem.materials[element.symbol] || 0) + 1;
+          }
+          
+          // 메시지 표시
+          showMessage(`🌟 별 초신성! ${element.name}(${element.symbol}) 원소를 획득했습니다!`, 'star');
+          
+          // 애니메이션 효과
+          this.showSupernovaAnimation();
+        }
       }
+    } else {
+      // 기본 범위 (1-26번 원소)
+      const randomElementNumber = Math.floor(Math.random() * 26) + 1;
+      const element = gameState.elementsData.find(e => e.number === randomElementNumber);
       
-      // 메시지 표시
-      showMessage(`🌟 초신성! ${element.name}(${element.symbol}) 원소를 획득했습니다!`, 'star');
-      
-      // 애니메이션 효과
-      this.showSupernovaAnimation();
+      if (element) {
+        // 핵융합 시스템에 원소 추가
+        if (gameState.fusionSystem) {
+          gameState.fusionSystem.materials[element.symbol] = (gameState.fusionSystem.materials[element.symbol] || 0) + 1;
+        }
+        
+        // 메시지 표시
+        showMessage(`🌟 별 초신성! ${element.name}(${element.symbol}) 원소를 획득했습니다!`, 'star');
+        
+        // 애니메이션 효과
+        this.showSupernovaAnimation();
+      }
     }
   }
 
@@ -129,6 +181,32 @@ class StarManagement {
     }
   }
 
+  // 우주 모달 표시
+  showStarManagementModal() {
+    const modal = document.getElementById('star-management-modal');
+    if (modal) {
+      // 별 재화 시스템 UI 업데이트
+      if (window.starCurrency) {
+        window.starCurrency.updateUI();
+      }
+      // 별 관리 시스템 UI 업데이트
+      this.updateUI();
+      // 별 융합 UI 업데이트
+      if (window.starFusionUI) {
+        window.starFusionUI.updateUI();
+      }
+      modal.classList.remove('hidden');
+    }
+  }
+
+  // 우주 모달 숨김
+  hideStarManagementModal() {
+    const modal = document.getElementById('star-management-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+    }
+  }
+
   // UI 업데이트
   updateUI() {
     // 활성 별 수
@@ -155,34 +233,10 @@ class StarManagement {
       const feCount = gameState.fusionSystem.materials.Fe || 0;
       feCountEl.textContent = feCount;
       
-      // Fe → 별 변환 버튼 상태
-      const convertFeBtn = document.getElementById('convert-fe-to-stars');
-      if (convertFeBtn) {
-        const canConvert = feCount >= 5;
-        convertFeBtn.disabled = !canConvert;
-        convertFeBtn.textContent = canConvert ? `별 생성 (${Math.floor(feCount / 5)}개)` : '별 생성 불가';
-      }
+      // Fe → 별 변환 버튼 제거됨
     }
     
-    // 고원자번호 원소 수량
-    const heavyElementsEl = document.getElementById('heavy-elements-count');
-    if (heavyElementsEl && gameState.fusionSystem) {
-      let heavyCount = 0;
-      for (const [symbol, count] of Object.entries(gameState.fusionSystem.materials)) {
-        const element = gameState.elementsData.find(e => e.symbol === symbol);
-        if (element && element.number > 20 && count > 0) {
-          heavyCount += count;
-        }
-      }
-      heavyElementsEl.textContent = heavyCount;
-      
-      // 고원소 → 별 변환 버튼 상태
-      const convertHeavyBtn = document.getElementById('convert-heavy-to-stars');
-      if (convertHeavyBtn) {
-        convertHeavyBtn.disabled = heavyCount === 0;
-        convertHeavyBtn.textContent = heavyCount > 0 ? '별 생성 가능' : '별 생성 불가';
-      }
-    }
+    // 고원자번호 원소 관련 UI 제거됨
     
     // 초신성 대기열 업데이트
     this.updateSupernovaQueue();
@@ -223,7 +277,8 @@ class StarManagement {
     return {
       stars: this.stars,
       totalStarsCreated: this.totalStarsCreated,
-      supernovaQueue: this.supernovaQueue
+      supernovaQueue: this.supernovaQueue,
+      fusedStars: this.fusedStars
     };
   }
 
@@ -233,13 +288,14 @@ class StarManagement {
       this.stars = data.stars || 0;
       this.totalStarsCreated = data.totalStarsCreated || 0;
       this.supernovaQueue = data.supernovaQueue || [];
+      this.fusedStars = data.fusedStars || { player: [], computer: [] };
     }
   }
 }
 
 // CSS 애니메이션 추가
-const style = document.createElement('style');
-style.textContent = `
+const starStyle = document.createElement('style');
+starStyle.textContent = `
   @keyframes supernova-explosion {
     0% {
       opacity: 1;
@@ -259,7 +315,26 @@ style.textContent = `
     box-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b;
   }
 `;
-document.head.appendChild(style);
+document.head.appendChild(starStyle);
 
 // 전역 인스턴스
 window.starManagement = new StarManagement();
+
+// 우주 모달 이벤트 리스너 설정
+document.addEventListener('DOMContentLoaded', () => {
+  // 우주 모달 열기 버튼
+  const starManagementBtn = document.getElementById('star-management-btn');
+  if (starManagementBtn) {
+    starManagementBtn.addEventListener('click', () => {
+      window.starManagement.showStarManagementModal();
+    });
+  }
+
+  // 우주 모달 닫기 버튼
+  const closeStarManagementModal = document.getElementById('close-star-management-modal');
+  if (closeStarManagementModal) {
+    closeStarManagementModal.addEventListener('click', () => {
+      window.starManagement.hideStarManagementModal();
+    });
+  }
+});

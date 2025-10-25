@@ -14,6 +14,15 @@ class FusionUI {
     this.researchModal = document.getElementById('research-modal');
     this.starManagementModal = document.getElementById('star-management-modal');
     this.setupEventListeners();
+    
+    // fusionSystem 연결 확인 및 설정
+    if (typeof window.gameState !== 'undefined' && window.gameState) {
+      if (!window.gameState.fusionSystem && window.fusionSystem) {
+        window.gameState.fusionSystem = window.fusionSystem;
+        console.log('fusionUI: fusionSystem이 gameState에 연결되었습니다.');
+      }
+    }
+    
     // 연구소 탭 숨기고 "합성물" 탭 라벨로 변경
     try {
       const researchTabBtn = document.querySelector('[data-tab="research"]');
@@ -97,6 +106,11 @@ class FusionUI {
       this.updateFusionDisplay();
       this.fusionModal.classList.remove('hidden');
       // 화학 합성실 드래그 기능 제거됨
+      
+      // 튜토리얼 액션 처리
+      if (typeof window.onFusionOpened === 'function') {
+        window.onFusionOpened();
+      }
     }
   }
 
@@ -343,63 +357,9 @@ class FusionUI {
 
   // 별 관리 모달 이벤트 설정
   setupStarManagementEvents() {
-    // Fe를 별로 변환하는 버튼
-    const convertFeBtn = document.getElementById('convert-fe-to-stars');
-    if (convertFeBtn) {
-      convertFeBtn.addEventListener('click', () => {
-        if (window.starManagement && gameState.fusionSystem) {
-          const feCount = gameState.fusionSystem.materials.Fe || 0;
-          if (feCount >= 5) {
-            const starsGained = window.starManagement.createStarsFromFe(feCount);
-            if (starsGained > 0) {
-              // Fe 소모
-              gameState.fusionSystem.materials.Fe = Math.max(0, feCount - (starsGained * 5));
-              showMessage(`${starsGained}개의 별을 생성했습니다!`, 'success');
-              this.updateMainUI();
-              if (window.starManagement) {
-                window.starManagement.updateUI();
-              }
-            }
-          } else {
-            showMessage('Fe가 부족합니다. (최소 5개 필요)', 'warning');
-          }
-        }
-      });
-    }
+    // Fe를 별로 변환하는 기능 제거됨
 
-    // 고원자번호 원소를 별로 변환하는 버튼
-    const convertHeavyBtn = document.getElementById('convert-heavy-to-stars');
-    if (convertHeavyBtn) {
-      convertHeavyBtn.addEventListener('click', () => {
-        if (window.starManagement && gameState.fusionSystem) {
-          let totalStars = 0;
-          const materials = gameState.fusionSystem.materials;
-          
-          // 고원자번호 원소들을 별로 변환
-          for (const [symbol, count] of Object.entries(materials)) {
-            const element = gameState.elementsData.find(e => e.symbol === symbol);
-            if (element && element.number > 20 && count > 0) {
-              const starsGained = window.starManagement.createStarsFromHeavyElements(symbol, count);
-              if (starsGained > 0) {
-                // 원소 소모
-                materials[symbol] = 0;
-                totalStars += starsGained;
-              }
-            }
-          }
-          
-          if (totalStars > 0) {
-            showMessage(`${totalStars}개의 별을 생성했습니다!`, 'success');
-            this.updateMainUI();
-            if (window.starManagement) {
-              window.starManagement.updateUI();
-            }
-          } else {
-            showMessage('변환할 고원자번호 원소가 없습니다.', 'warning');
-          }
-        }
-      });
-    }
+    // 고원자번호 원소를 별로 변환하는 기능 제거됨
   }
 
   // 손패를 기반으로 재료 인벤토리 동기화 (연구소/실험실 진입 시 갱신)
@@ -631,29 +591,39 @@ class FusionUI {
     `;
     fusionInterface.appendChild(batchFusionContainer);
 
-    // Z=2부터 Z=118까지 융합 옵션 생성 (핵융합/초신성)
-    for (let Z = 2; Z <= 118; Z++) {
+    // 최대 융합 버튼 추가
+    const maxFusionContainer = document.createElement('div');
+    maxFusionContainer.className = 'mb-6 p-4 bg-gradient-to-r from-purple-900 to-blue-900 rounded-lg border border-purple-400';
+    maxFusionContainer.innerHTML = `
+      <div class="text-center mb-4">
+        <h3 class="text-xl font-bold text-yellow-300 mb-2">⚡ 최대 융합</h3>
+        <p class="text-sm text-gray-300">가진 원소 전부를 최대한 많이 융합합니다</p>
+        <p class="text-xs text-gray-400 mt-1">에너지와 재료가 허용하는 한 모든 원소를 자동으로 융합</p>
+      </div>
+      <div class="flex justify-center">
+        <button id="max-fusion-btn" class="px-6 py-3 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 rounded-lg font-bold text-white shadow-lg transform hover:scale-105 transition-all duration-200">
+          🚀 최대 융합 실행
+        </button>
+      </div>
+    `;
+    fusionInterface.appendChild(maxFusionContainer);
+
+    // Z=2부터 Z=26까지 융합 옵션 생성 (핵융합만)
+    for (let Z = 2; Z <= 26; Z++) {
       const required = gameState.fusionSystem.calculateRequiredMaterials(Z);
       const energyCost = gameState.fusionSystem.calculateEnergyCost(Z);
-      const starCost = gameState.fusionSystem.calculateStarCost(Z);
       const previousElement = gameState.fusionSystem.getSymbolByNumber(Z - 1);
       const targetElement = gameState.fusionSystem.getSymbolByNumber(Z);
       const available = gameState.fusionSystem.materials[previousElement] || 0;
-      const isSupernova = Z > 26;
 
       const fsEnergy = Number.isFinite(Number(gameState.fusionSystem.energy)) ? Number(gameState.fusionSystem.energy) : 0;
       if (!Number.isFinite(gameState.fusionSystem.energy)) {
         gameState.fusionSystem.energy = fsEnergy; // 상태 복구
       }
-      const canFuse = available >= required && 
-                     fsEnergy >= energyCost &&
-                     (!isSupernova || gameState.fusionSystem.stars >= starCost);
+      const canFuse = available >= required && fsEnergy >= energyCost;
 
       const fusionOption = document.createElement('div');
       fusionOption.className = `bg-gray-700 p-4 rounded-lg flex justify-between items-center ${(!canFuse && gameState.fusionSystem.energy < energyCost) ? 'border border-red-500 bg-red-900' : ''}`;
-      
-      const processName = isSupernova ? '초신성' : '핵융합';
-      const starText = isSupernova ? ` | 별: ${starCost}` : '';
       
       fusionOption.innerHTML = `
         <div class="flex items-center gap-3">
@@ -664,28 +634,26 @@ class FusionUI {
             ${canFuse ? '' : 'disabled'}
           />
           <div>
-            <div class="text-lg font-bold ${isSupernova ? 'text-red-300' : 'text-purple-300'}">${previousElement} → ${targetElement}</div>
+            <div class="text-lg font-bold text-purple-300">${previousElement} → ${targetElement}</div>
             <div class="text-sm text-gray-400">
-              필요: ${previousElement}×${required} (보유: ${available}) | 에너지: ${energyCost} (보유: ${fsEnergy})${starText}
+              필요: ${previousElement}×${required} (보유: ${available}) | 에너지: ${energyCost} (보유: ${fsEnergy})
             </div>
             ${!canFuse ? `
               <div class="text-xs text-red-400 mt-1">
                 ${available < required ? `재료 부족` : 
-                  gameState.fusionSystem.energy < energyCost ? `⚡ 에너지 부족! H를 에너지로 변환하세요` :
-                  isSupernova && gameState.fusionSystem.stars < starCost ? `별 자원 부족` : ''}
+                  gameState.fusionSystem.energy < energyCost ? `⚡ 에너지 부족! H를 에너지로 변환하세요` : ''}
               </div>
             ` : ''}
           </div>
         </div>
         <button 
-          class="fusion-btn px-4 py-2 rounded ${canFuse ? (isSupernova ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700') : 'bg-gray-600 cursor-not-allowed opacity-50'}" 
+          class="fusion-btn px-4 py-2 rounded ${canFuse ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 cursor-not-allowed opacity-50'}" 
           ${canFuse ? '' : 'disabled'}
           data-target-z="${Z}"
           title="${!canFuse ? (available < required ? `재료 부족: ${previousElement} ${available}/${required}` : 
-            gameState.fusionSystem.energy < energyCost ? `⚡ 에너지 부족: ${gameState.fusionSystem.energy}/${energyCost}\nH를 에너지로 변환하세요!` :
-            isSupernova && gameState.fusionSystem.stars < starCost ? `별 자원 부족: ${gameState.fusionSystem.stars}/${starCost}` : '') : ''}"
+            gameState.fusionSystem.energy < energyCost ? `⚡ 에너지 부족: ${gameState.fusionSystem.energy}/${energyCost}\nH를 에너지로 변환하세요!` : '') : ''}"
         >
-          ${canFuse ? processName : '❌'}
+          ${canFuse ? '핵융합' : '❌'}
         </button>
       `;
 
@@ -711,8 +679,13 @@ class FusionUI {
   performFusion(targetZ) {
     try {
       if (!gameState.fusionSystem) {
-        showMessage('핵융합 시스템이 초기화되지 않았습니다.', 'error');
-        return;
+        console.warn('fusionSystem이 없습니다. window.fusionSystem을 사용합니다.');
+        if (!window.fusionSystem) {
+          showMessage('핵융합 시스템이 초기화되지 않았습니다.', 'error');
+          return;
+        }
+        // window.fusionSystem을 gameState에 연결
+        gameState.fusionSystem = window.fusionSystem;
       }
 
       // 입력 검증
@@ -1150,8 +1123,13 @@ class FusionUI {
   synthesizeMolecule(moleculeId) {
     try {
       if (!gameState.fusionSystem) {
-        showMessage('핵융합 시스템이 초기화되지 않았습니다.', 'error');
-        return;
+        console.warn('fusionSystem이 없습니다. window.fusionSystem을 사용합니다.');
+        if (!window.fusionSystem) {
+          showMessage('핵융합 시스템이 초기화되지 않았습니다.', 'error');
+          return;
+        }
+        // window.fusionSystem을 gameState에 연결
+        gameState.fusionSystem = window.fusionSystem;
       }
 
       if (!moleculeId || typeof moleculeId !== 'string') {
@@ -1319,6 +1297,14 @@ class FusionUI {
         }
       });
     }
+
+    // 최대 융합 버튼
+    const maxFusionBtn = document.getElementById('max-fusion-btn');
+    if (maxFusionBtn) {
+      maxFusionBtn.addEventListener('click', () => {
+        this.performMaxFusion();
+      });
+    }
   }
 
   // 배치 융합 실행
@@ -1333,21 +1319,17 @@ class FusionUI {
       return;
     }
 
-    // 융합 가능한 원소들만 필터링
+    // 융합 가능한 원소들만 필터링 (25번까지만 핵융합)
     const validTargets = targetZs.filter(Z => {
-      if (!Number.isInteger(Z) || Z < 2 || Z > 118) return false;
+      if (!Number.isInteger(Z) || Z < 2 || Z > 25) return false; // 25번까지만 핵융합
       
       const required = gameState.fusionSystem.calculateRequiredMaterials(Z);
       const energyCost = gameState.fusionSystem.calculateEnergyCost(Z);
-      const starCost = gameState.fusionSystem.calculateStarCost(Z);
       const previousElement = gameState.fusionSystem.getSymbolByNumber(Z - 1);
       const available = gameState.fusionSystem.materials[previousElement] || 0;
-      const isSupernova = Z > 26;
       const fsEnergy = Number.isFinite(Number(gameState.fusionSystem.energy)) ? Number(gameState.fusionSystem.energy) : 0;
       
-      return available >= required && 
-             fsEnergy >= energyCost &&
-             (!isSupernova || gameState.fusionSystem.stars >= starCost);
+      return available >= required && fsEnergy >= energyCost;
     });
 
     if (validTargets.length === 0) {
@@ -1360,21 +1342,18 @@ class FusionUI {
       try {
         let successCount = 0;
         let totalEnergyUsed = 0;
-        let totalStarsUsed = 0;
 
         validTargets.forEach(Z => {
           const result = gameState.fusionSystem.performFusion(Z);
           if (result.success) {
             successCount++;
             const energyCost = gameState.fusionSystem.calculateEnergyCost(Z);
-            const starCost = gameState.fusionSystem.calculateStarCost(Z);
             totalEnergyUsed += energyCost;
-            totalStarsUsed += starCost;
           }
         });
 
         if (successCount > 0) {
-          showMessage(`배치 융합 완료! ${successCount}개 원소 융합 (에너지: ${totalEnergyUsed}, 별: ${totalStarsUsed})`, 'success');
+          showMessage(`배치 융합 완료! ${successCount}개 원소 융합 (에너지: ${totalEnergyUsed})`, 'success');
           this.updateFusionDisplay();
       this.updateMainUI();
       // 손패 UI 업데이트
@@ -1389,6 +1368,49 @@ class FusionUI {
         showMessage(`배치 융합 실행 중 오류가 발생했습니다: ${error.message}`, 'error');
       }
     });
+  }
+
+  // 최대 융합 실행
+  performMaxFusion() {
+    if (!gameState.fusionSystem) {
+      showMessage('핵융합 시스템이 초기화되지 않았습니다.', 'error');
+      return;
+    }
+
+    try {
+      // 융합 애니메이션 표시 (대상이 많을 수 있으므로 일반적인 애니메이션)
+      this.showFusionAnimation([], () => {
+        try {
+          const result = gameState.fusionSystem.performMaxFusion();
+          
+          if (result.success) {
+            showMessage(result.message, 'success');
+            this.updateFusionDisplay();
+            this.updateMainUI();
+            
+            // 손패 UI 업데이트
+            if (typeof renderPlayerHand === 'function') {
+              renderPlayerHand();
+            }
+            
+            // materials 동기화 (손패 변경 반영)
+            if (gameState.fusionSystem && typeof gameState.fusionSystem.syncMaterialsFromHand === 'function') {
+              gameState.fusionSystem.syncMaterialsFromHand();
+            }
+          } else {
+            const messageType = result.message.includes('에너지가 부족') ? 'energy' : 
+                              result.message.includes('재료') ? 'warning' : 'error';
+            showMessage(result.message, messageType);
+          }
+        } catch (error) {
+          console.error('[performMaxFusion] 최대 융합 실행 중 오류:', error);
+          showMessage(`최대 융합 실행 중 오류가 발생했습니다: ${error.message}`, 'error');
+        }
+      });
+    } catch (error) {
+      console.error('[performMaxFusion] UI 오류:', error);
+      showMessage(`최대 융합 UI 오류가 발생했습니다: ${error.message}`, 'error');
+    }
   }
 
   // 에너지 변환 이벤트 리스너 설정

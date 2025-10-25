@@ -239,12 +239,12 @@ class CardPackSystem {
 
     console.log('[selectElementByRarity] 원소 데이터 개수:', gameState.elementsData.length);
 
-    // 현재까지 발견된 최상위 원소 번호의 절반까지만 등장
+    // 현재까지 발견된 최상위 원소 번호 - 2까지만 등장
     const maxDiscovered = (typeof getMaxDiscoveredElementNumber === 'function') ? getMaxDiscoveredElementNumber() : 1;
     console.log('[selectElementByRarity] maxDiscovered:', maxDiscovered);
     
     // 최소 cap을 1로 설정하여 H는 항상 나올 수 있도록 함
-    const cap = Math.max(1, Math.floor(maxDiscovered / 2));
+    const cap = Math.max(1, maxDiscovered - 2);
     console.log('[selectElementByRarity] cap:', cap);
     
     const availableElements = gameState.elementsData.filter(e => {

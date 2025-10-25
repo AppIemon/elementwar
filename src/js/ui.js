@@ -8,19 +8,19 @@ function renderPlayerHand() {
 
   handElement.innerHTML = ''; // Clear current hand display
 
-  // 인벤토리 맨 왼쪽: 화학 합성실 인라인 드롭존
+  // 인벤토리 맨 왼쪽: 화학 합성실 인라인 버튼
   const chemInline = document.createElement('div');
   chemInline.id = 'chem-lab-dropzone-inline';
-  chemInline.title = '손패의 원소 카드를 드롭하면 합성실에 담깁니다.';
-  chemInline.className = 'relative group h-32 w-24 mr-2 rounded border-2 border-dashed border-green-500/80 bg-gray-900/60 flex items-center justify-center shadow-lg ring-2 ring-green-400/40';
+  chemInline.title = '화학 합성실 열기';
+  chemInline.className = 'relative group h-32 w-24 mr-2 rounded border-2 border-solid border-green-500/80 bg-gray-900/60 flex items-center justify-center shadow-lg ring-2 ring-green-400/40 cursor-pointer hover:bg-gray-800/60';
   chemInline.innerHTML = `
     <div class="absolute -top-2 -left-2 bg-green-600 text-white text-[10px] px-2 py-0.5 rounded">합성</div>
     <div class="chem-lab-empty text-center text-[11px] text-green-300 leading-tight pointer-events-none">
       화학 합성실
-      <div class="text-[10px] opacity-80 mt-1">(여기로 드래그)</div>
+      <div class="text-[10px] opacity-80 mt-1">(클릭하여 열기)</div>
     </div>
     <div class="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:block bg-gray-900/95 text-gray-200 text-xs rounded px-2 py-1 w-44 shadow-xl z-10">
-      손패의 원소 카드를 드롭하면 합성 대기열에 담깁니다.
+      화학 합성실을 열어 원소를 합성하세요.
     </div>
     <div class="absolute -bottom-2 -left-2 right-0 flex justify-between gap-1">
       <button id="chem-lab-clear-inline" class="px-1.5 py-0.5 bg-gray-700 hover:bg-gray-600 rounded text-[10px]">비우기</button>
@@ -234,10 +234,12 @@ function renderPlayerHand() {
     setupHandCardsDraggable();
   }
 
-  // 합성실 인라인 드롭존 드래그&드롭 바인딩
-  if (typeof attachChemLabDnD === 'function') {
-    attachChemLabDnD();
-  }
+  // 화학 합성실 클릭 이벤트 추가
+  chemInline.addEventListener('click', () => {
+    if (typeof window.fusionUI !== 'undefined' && window.fusionUI.showFusionModal) {
+      window.fusionUI.showFusionModal();
+    }
+  });
 }
 
 // 인라인 합성실 버튼 바인딩 유틸리티
@@ -673,6 +675,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// 카드 상세 정보 모달 닫기
+function hideCardDetail() {
+  const modal = document.getElementById('card-detail-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+}
+
 // 카드 상세 정보 표시
 function showCardDetail(card) {
   const modal = document.getElementById('card-detail-modal');
@@ -743,6 +753,31 @@ function showCardDetail(card) {
     detailHtml += `</button>`;
     detailHtml += `</div>`;
   }
+  // Add Molecule Information if it's a molecule card
+  else if (card.type === 'molecule' || card.moleculeId) {
+    detailHtml += `<div class="bg-gray-700 p-3 rounded-lg mb-4">`;
+    detailHtml += `<h3 class="text-lg font-semibold text-purple-300 mb-2">분자 정보</h3>`;
+    detailHtml += `<p><span class="font-semibold text-gray-400">이름:</span> ${card.name || '알 수 없는 분자'}</p>`;
+    if (card.symbol) {
+      detailHtml += `<p><span class="font-semibold text-gray-400">기호:</span> ${card.symbol}</p>`;
+    }
+    if (card.formula) {
+      detailHtml += `<p><span class="font-semibold text-gray-400">화학식:</span> ${card.formula}</p>`;
+    }
+    detailHtml += `</div>`;
+    
+    // Add fuel button for molecule cards
+    const currentEnergy = gameState.energy || 0;
+    const fuelCost = calculateMoleculeEnergyValue(card);
+    detailHtml += `<div class="bg-orange-900/30 p-3 rounded-lg mb-4 border border-orange-500/50">`;
+    detailHtml += `<h3 class="text-lg font-semibold text-orange-300 mb-2">연료 사용</h3>`;
+    detailHtml += `<p class="text-sm text-gray-400 mb-3">현재 에너지: ${currentEnergy} ⚡</p>`;
+    detailHtml += `<p class="text-sm text-gray-400 mb-3">이 분자를 연료로 사용하여 <span class="text-orange-300 font-bold">${fuelCost} 에너지</span>를 생성합니다.</p>`;
+    detailHtml += `<button id="use-as-fuel" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded font-bold transition-colors">`;
+    detailHtml += `연료로 사용 (+${fuelCost} ⚡)`;
+    detailHtml += `</button>`;
+    detailHtml += `</div>`;
+  }
   // Add Element Information if it's a base element card
   else if (card.element) {
      detailHtml += `<div class="bg-gray-700 p-3 rounded-lg mb-4">`;
@@ -758,7 +793,7 @@ function showCardDetail(card) {
        detailHtml += `<div class="bg-purple-900/30 p-3 rounded-lg mb-4 border border-purple-500/50">`;
        detailHtml += `<h3 class="text-lg font-semibold text-purple-300 mb-2">핵융합</h3>`;
        detailHtml += `<p class="text-sm text-gray-400 mb-3">보유: ${elementCount}개 (2개당 1개 생성)</p>`;
-       detailHtml += `<button id="fusion-from-detail" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded font-bold transition-colors">`;
+       detailHtml += `<button id="fusion-from-detail" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded font-bold transition-colors mb-2">`;
        detailHtml += `핵융합 실행`;
        detailHtml += `</button>`;
        detailHtml += `</div>`;
@@ -767,6 +802,15 @@ function showCardDetail(card) {
        detailHtml += `<p class="text-sm text-gray-500 text-center">핵융합하려면 2개 이상 필요 (현재: ${elementCount}개)</p>`;
        detailHtml += `</div>`;
      }
+
+     // Add max fusion button (always available if fusion system exists)
+     detailHtml += `<div class="bg-gradient-to-r from-purple-900/30 to-blue-900/30 p-3 rounded-lg mb-4 border border-purple-400/50">`;
+     detailHtml += `<h3 class="text-lg font-semibold text-yellow-300 mb-2">⚡ 최대 융합</h3>`;
+     detailHtml += `<p class="text-sm text-gray-300 mb-3">가진 원소 전부를 최대한 많이 융합합니다</p>`;
+     detailHtml += `<button id="max-fusion-from-detail" class="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white py-2 px-4 rounded font-bold transition-all duration-200 transform hover:scale-105">`;
+     detailHtml += `🚀 최대 융합 실행`;
+     detailHtml += `</button>`;
+     detailHtml += `</div>`;
      
      // Add fuel button for energy generation
      const currentEnergy = gameState.energy || 0;
@@ -792,6 +836,20 @@ function showCardDetail(card) {
       const elementCount = getElementCountInHand(card.element.symbol);
       if (window.fusionUI && typeof window.fusionUI.showFusionModal === 'function') {
         window.fusionUI.showFusionModal(card.element.symbol, elementCount);
+        // Close the card detail modal
+        modal.classList.add('hidden');
+      } else {
+        showMessage('핵융합 시스템을 사용할 수 없습니다.', 'error');
+      }
+    });
+  }
+
+  // Add event listener for max fusion button
+  const maxFusionBtn = document.getElementById('max-fusion-from-detail');
+  if (maxFusionBtn) {
+    maxFusionBtn.addEventListener('click', () => {
+      if (window.fusionUI && typeof window.fusionUI.performMaxFusion === 'function') {
+        window.fusionUI.performMaxFusion();
         // Close the card detail modal
         modal.classList.add('hidden');
       } else {
@@ -826,6 +884,11 @@ function showCardDetail(card) {
         } else {
           if (!gameState.energy) gameState.energy = 0;
           gameState.energy += energyGained;
+          
+          // fusionSystem과 동기화
+          if (gameState.fusionSystem) {
+            gameState.fusionSystem.energy = gameState.energy;
+          }
         }
         
         showMessage(`${card.name}을 연료로 사용하여 에너지를 ${energyGained} 획득했습니다!`, 'energy');
@@ -852,15 +915,15 @@ function calculateElementEnergyValue(card) {
   const category = element.category || '';
   
   // 기본 에너지 값 (원자번호 기반)
-  let baseEnergy = Math.floor(Math.log(atomicNumber) * 2) + 1;
+  let baseEnergy = Math.floor(Math.pow(atomicNumber, 1.9));
   
   // 희귀도 보너스
   const rarityMultipliers = {
     'common': 1.0,
-    'uncommon': 1.5,
-    'rare': 2.0,
-    'epic': 3.0,
-    'legendary': 5.0
+    'uncommon': 2.0,
+    'rare': 4.0,
+    'epic': 9.0,
+    'legendary': 36.0
   };
   
   baseEnergy = Math.floor(baseEnergy * (rarityMultipliers[rarity] || 1.0));
@@ -1031,6 +1094,7 @@ function updateUI() {
 
 // Expose functions to the global scope
 window.showMessage = showMessage;
+window.hideCardDetail = hideCardDetail; // Expose hideCardDetail function
 window.hideCardDetailModal = typeof hideCardDetailModal !== 'undefined' ? hideCardDetailModal : undefined; // Expose if needed globally
 window.renderPlayerHand = renderPlayerHand; // Ensure exposed if called externally
 window.updateBaseDisplay = typeof updateBaseDisplay !== 'undefined' ? updateBaseDisplay : undefined; // Expose if needed globally

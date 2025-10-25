@@ -89,11 +89,16 @@ class NumberFormatting {
     const isNegative = number < 0;
     const absNumber = Math.abs(number);
 
-    // 10^96으로 나누어 Utg 단위로 변환
-    const utgValue = absNumber / Math.pow(10, 96);
-    const formattedValue = utgValue.toFixed(1);
-
-    return (isNegative ? '-' : '') + formattedValue + 'Utg';
+    // 10^20 이상인 경우에만 Utg 단위로 변환
+    if (absNumber >= Math.pow(10, 20)) {
+      // 10^96으로 나누어 Utg 단위로 변환
+      const utgValue = absNumber / Math.pow(10, 96);
+      const formattedValue = utgValue.toFixed(1);
+      return (isNegative ? '-' : '') + formattedValue + 'Utg';
+    } else {
+      // 10^20 미만인 경우 일반 포맷팅 사용
+      return this.formatNumber(number);
+    }
   }
 
   // 문자열에서 숫자 추출하여 포맷팅

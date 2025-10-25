@@ -9,7 +9,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
-  <script src="/socket.io/socket.io.js"></script>
+  <!-- Express API 기반 온라인 통신 -->
   <style>
     /* 뽑기 애니메이션을 위한 CSS */
     .rainbow-bg {
@@ -349,11 +349,11 @@
         <button id="molecule-guide-btn" class="bg-purple-600 hover:bg-purple-700 text-white py-1 px-4 rounded-md shadow transition-colors mr-3">                      
           분자 도감
         </button>
-        <button id="tutorial-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white py-1 px-4 rounded-md shadow transition-colors mr-3">                      
-          튜토리얼
-        </button>
         <button id="online-match-btn" class="bg-green-600 hover:bg-green-700 text-white py-1 px-4 rounded-md shadow transition-colors mr-3">                      
           🌐 온라인 매칭
+        </button>
+        <button id="tutorial-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white py-1 px-4 rounded-md shadow transition-colors mr-3">                      
+          🎓 튜토리얼
         </button>
         <div class="coin-display flex items-center bg-yellow-600 px-4 py-1 rounded-full mr-2">                                                                       
           <span class="text-xl mr-1">💰</span>
@@ -367,12 +367,18 @@
           <span class="text-xl mr-1">🔥</span>
           <span id="heat-amount" class="font-bold">0</span>
         </div>
+        <div class="star-display flex items-center bg-purple-600 px-4 py-1 rounded-full mr-2">
+          <span class="text-xl mr-1">⭐</span>
+          <span id="player-stars-count" class="font-bold">0</span>
+        </div>
         <div class="ml-3 difficulty-container">
           <label for="difficulty-select" class="text-sm text-gray-200 mr-2">난이도</label>
           <select id="difficulty-select" class="bg-gray-700 text-white text-sm px-2 py-1 rounded-md border border-gray-600">
+            <option value="very_easy">매우 쉬움</option>
             <option value="easy">쉬움</option>
             <option value="normal" selected>보통</option>
             <option value="hard">어려움</option>
+            <option value="very_hard">매우 어려움</option>
           </select>
         </div>
       </div>
@@ -476,72 +482,12 @@
         <button id="end-turn-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-md shadow transition-colors m-1">
           턴 종료
         </button>
-        <button id="reset-btn" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md shadow transition-colors m-1">
+        <button id="reset-btn" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md shadow transition-colors m-1 hidden">
           게임 리셋
         </button>
       </div>
     </div>
 
-    <div id="tutorial-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
-      <div class="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-        <h2 class="text-2xl font-bold text-yellow-400 mb-4">원소 대전 튜토리얼</h2>
-        
-        <div class="tutorial-steps">
-          <div class="tutorial-step active" data-step="1">
-            <h3 class="text-xl text-blue-300 mb-3">1. 게임 소개</h3>
-            <p class="mb-2">원소 대전은 주기율표의 원소들을 활용한 카드 배틀 게임입니다.</p>
-            <p class="mb-2">각 원소는 고유한 능력치와 특성을 가지며, 원소들을 조합해 분자를 만들 수 있습니다.</p>
-            <img src="src/images/tutorial/game-overview.png" alt="게임 화면" class="my-3 rounded-lg w-full">
-          </div>
-          
-          <div class="tutorial-step hidden" data-step="2">
-            <h3 class="text-xl text-blue-300 mb-3">2. 카드 뽑기</h3>
-            <p class="mb-2">게임 시작시 기본 카드를 받게 됩니다. 추가 카드는 코인을 사용해 뽑을 수 있습니다:</p>
-            <ul class="list-disc pl-5 mb-3">
-              <li>일반 뽑기: 2 코인 (일반 카드 위주)</li>
-              <li>고급 뽑기: 5 코인 (희귀 카드 확률 증가)</li>
-              <li>레전드 뽑기: 10 코인 (전설 카드 등장 가능)</li>
-            </ul>
-            <img src="src/images/tutorial/card-drawing.png" alt="카드 뽑기" class="my-3 rounded-lg w-full">
-          </div>
-          
-          <div class="tutorial-step hidden" data-step="3">
-            <h3 class="text-xl text-blue-300 mb-3">3. 카드 배치와 전투</h3>
-            <p class="mb-2">카드를 5개의 라인 중 하나에 드래그하여 배치합니다.</p>
-            <p class="mb-2">턴이 끝날 때마다 카드들은 서로 공격하며, 앞에 적이 없으면 상대 기지를 직접 공격합니다.</p>
-            <p class="mb-2">같은 자리에 여러 장의 카드를 올리면 합쳐져서 표시되며, 적절한 조합이면 자동으로 분자가 생성됩니다.</p>
-            <img src="src/images/tutorial/battle.png" alt="전투 화면" class="my-3 rounded-lg w-full">
-          </div>
-          
-          <div class="tutorial-step hidden" data-step="4">
-            <h3 class="text-xl text-blue-300 mb-3">4. 분자 합성</h3>
-            <p class="mb-2">같은 자리에 특정 원소들이 모이면 자동으로 분자가 합성됩니다.</p>
-            <p class="mb-2">분자는 일반 원소보다 강력하며 특수 효과를 가집니다.</p>
-            <p class="mb-2">예: H + H + O → H₂O (물)</p>
-            <img src="src/images/tutorial/molecule.png" alt="분자 합성" class="my-3 rounded-lg w-full">
-          </div>
-          
-          <div class="tutorial-step hidden" data-step="5">
-            <h3 class="text-xl text-blue-300 mb-3">5. 게임 승리</h3>
-            <p class="mb-2">상대방의 기지 체력을 0으로 만들면 승리합니다.</p>
-            <p class="mb-2">전략적으로 카드를 배치하고 분자를 합성하여 강력한 조합을 만들어보세요!</p>
-            <img src="src/images/tutorial/victory.png" alt="게임 승리" class="my-3 rounded-lg w-full">
-          </div>
-        </div>
-        
-        <div class="flex justify-between mt-6">
-          <button id="prev-tutorial" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-6 rounded">이전</button>
-          <div>
-            <span id="tutorial-step">1</span> / <span id="tutorial-total">5</span>
-          </div>
-          <button id="next-tutorial" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded">다음</button>
-        </div>
-        
-        <div class="flex justify-center mt-4">
-          <button id="skip-tutorial" class="text-gray-400 hover:text-white">튜토리얼 건너뛰기</button>
-        </div>
-      </div>
-    </div>
     <div id="draw-animation-container" class="fixed inset-0 flex items-center justify-center z-50 pointer-events-none hidden">
       <div id="draw-animation" class="relative">
         <div class="card-pack bg-gradient-to-br from-purple-600 to-blue-800 w-48 h-64 rounded-lg shadow-2xl flex items-center justify-center">
@@ -650,17 +596,93 @@
     </div>
 
 
-    <!-- 별 관리 모달 (우주) -->
+    <!-- 우주 모달 (별 관리 + 별 융합 통합) -->
     <div id="star-management-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
-      <div class="bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[90vh] flex flex-col">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-6xl w-full max-h-[90vh] flex flex-col">
         <div class="flex justify-between items-center mb-4 flex-shrink-0">
-          <h2 class="text-2xl font-bold text-purple-300">🌟 우주 - 별 관리</h2>
+          <h2 class="text-2xl font-bold text-purple-300">🌟 우주 - 별 관리 & 융합</h2>
           <button id="close-star-management-modal" class="text-gray-400 hover:text-white text-2xl">&times;</button>
         </div>
         
+        <!-- 별 재화 현황 -->
+        <div class="bg-gray-700 p-4 rounded-lg mb-6">
+          <h3 class="text-xl font-bold text-yellow-300 mb-4">별 재화 현황</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-600 p-3 rounded text-center">
+              <div class="text-2xl mb-1">⭐</div>
+              <div class="text-sm text-gray-300">플레이어 별</div>
+              <div id="player-stars-count" class="text-xl font-bold text-yellow-400">0</div>
+            </div>
+            <div class="bg-gray-600 p-3 rounded text-center">
+              <div class="text-2xl mb-1">🤖</div>
+              <div class="text-sm text-gray-300">컴퓨터 별</div>
+              <div id="computer-stars-count" class="text-xl font-bold text-blue-400">0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 별 질량 시스템 -->
+        <div class="bg-gray-700 p-4 rounded-lg mb-6">
+          <h3 class="text-xl font-bold text-purple-300 mb-4">🌟 별 질량 시스템</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-600 p-3 rounded text-center">
+              <div class="text-2xl mb-1">⚖️</div>
+              <div class="text-sm text-gray-300">현재 별 질량</div>
+              <div id="star-mass-count" class="text-xl font-bold text-purple-400">0</div>
+            </div>
+            <div class="bg-gray-600 p-3 rounded text-center">
+              <div class="text-2xl mb-1">🎯</div>
+              <div class="text-sm text-gray-300">다음 별 생성</div>
+              <div id="next-star-mass" class="text-sm font-bold text-cyan-400">별 생성 불가</div>
+            </div>
+          </div>
+          
+          <!-- 원소 그룹별 질량 가중치 설명 -->
+          <div class="mt-4 p-3 bg-gray-600 rounded">
+            <h4 class="text-lg font-bold text-gray-200 mb-2">원소 그룹별 질량 가중치</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+              <div class="text-center">
+                <div class="text-green-400 font-bold">🌱 경금속류</div>
+                <div class="text-gray-300">Li, Be, Na, Mg, Al</div>
+                <div class="text-yellow-400 font-bold">+1 질량</div>
+              </div>
+              <div class="text-center">
+                <div class="text-blue-400 font-bold">⚙️ 중금속류</div>
+                <div class="text-gray-300">Si, P, S, Ca</div>
+                <div class="text-yellow-400 font-bold">+5 질량</div>
+              </div>
+              <div class="text-center">
+                <div class="text-red-400 font-bold">💣 철족 금속류</div>
+                <div class="text-gray-300">Sc, Ti, V, Cr, Mn, Fe</div>
+                <div class="text-yellow-400 font-bold">+30 질량</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- H, He 별 획득 시스템 -->
+        <div class="bg-gray-700 p-4 rounded-lg mb-6">
+          <h3 class="text-xl font-bold text-cyan-300 mb-4">💫 H, He 별 획득 시스템</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-600 p-3 rounded text-center">
+              <div class="text-2xl mb-1">H</div>
+              <div class="text-sm text-gray-300">수소 100개당 별 1개</div>
+              <div class="text-lg font-bold text-cyan-400">자동 변환</div>
+            </div>
+            <div class="bg-gray-600 p-3 rounded text-center">
+              <div class="text-2xl mb-1">He</div>
+              <div class="text-sm text-gray-300">헬륨 50개당 별 1개</div>
+              <div class="text-lg font-bold text-cyan-400">자동 변환</div>
+            </div>
+          </div>
+          <div class="mt-3 p-2 bg-gray-600 rounded text-center">
+            <div class="text-sm text-gray-300">💡 H, He는 매 턴 종료 시 자동으로 별로 변환됩니다</div>
+          </div>
+        </div>
+
         <!-- 별 현황 -->
         <div class="bg-gray-700 p-4 rounded-lg mb-6">
-          <h3 class="text-xl font-bold text-yellow-300 mb-4">별 현황</h3>
+          <h3 class="text-xl font-bold text-yellow-300 mb-4">⭐ 별 현황</h3>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="bg-gray-600 p-3 rounded text-center">
               <div class="text-2xl mb-1">⭐</div>
@@ -678,40 +700,134 @@
               <div id="total-stars-created" class="text-xl font-bold text-purple-400">0</div>
             </div>
           </div>
+          
+          <!-- 수소 최소 갯수 요구사항 -->
+          <div class="mt-4 p-3 bg-gray-600 rounded">
+            <h4 class="text-lg font-bold text-gray-200 mb-2">⚛️ 수소 사용 (선택사항)</h4>
+            <div class="text-sm text-gray-300">
+              <p>핵융합 시 수소가 있으면 자동으로 사용됩니다 (없어도 핵융합 가능):</p>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                <div class="text-center">
+                  <div class="text-blue-400 font-bold">1-5번 원소</div>
+                  <div class="text-yellow-400">H 1개 사용</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-blue-400 font-bold">6-10번 원소</div>
+                  <div class="text-yellow-400">H 2개 사용</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-blue-400 font-bold">11-15번 원소</div>
+                  <div class="text-yellow-400">H 3개 사용</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-blue-400 font-bold">16-20번 원소</div>
+                  <div class="text-yellow-400">H 4개 사용</div>
+                </div>
+              </div>
+              <p class="text-green-400 mt-2">💡 수소가 없어도 핵융합할 원소가 있으면 핵융합이 가능합니다!</p>
+            </div>
+          </div>
         </div>
 
-        <!-- 별 생성 -->
+        <!-- 별 융합 (질량 기반) -->
         <div class="bg-gray-700 p-4 rounded-lg mb-6">
-          <h3 class="text-xl font-bold text-green-300 mb-4">별 생성</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <h3 class="text-xl font-bold text-green-300 mb-4">🌟 별 융합 (질량 기반)</h3>
+          <p class="text-sm text-gray-300 mb-4">원소를 융합하여 질량을 축적하고, 충분한 질량이 모이면 별이 자동 생성됩니다!</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="bg-gray-600 p-4 rounded">
-              <h4 class="text-lg font-bold text-blue-300 mb-2">Fe → 별 변환</h4>
-              <p class="text-sm text-gray-300 mb-3">Fe 5개를 별 1개로 변환합니다</p>
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-sm">보유 Fe:</span>
-                <span id="fe-count" class="font-bold text-blue-400">0</span>
-              </div>
-              <button id="convert-fe-to-stars" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded disabled:opacity-50" disabled>
-                별 생성 불가
+              <h4 class="text-lg font-bold text-yellow-300 mb-2">작은 별</h4>
+              <p class="text-sm text-gray-300 mb-2">원소 범위: 1-26번</p>
+              <p class="text-sm text-gray-300 mb-2">필요 질량: 10</p>
+              <p class="text-sm text-gray-300 mb-3">비용: 1개</p>
+              <button id="fuse-small-star" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded disabled:opacity-50" disabled>
+                작은 별 생성 불가
               </button>
             </div>
             <div class="bg-gray-600 p-4 rounded">
-              <h4 class="text-lg font-bold text-purple-300 mb-2">고원자번호 원소 → 별 변환</h4>
-              <p class="text-sm text-gray-300 mb-3">원자번호가 높은 원소를 별로 변환합니다</p>
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-sm">보유 고원소:</span>
-                <span id="heavy-elements-count" class="font-bold text-purple-400">0</span>
-              </div>
-              <button id="convert-heavy-to-stars" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded disabled:opacity-50" disabled>
-                별 생성 불가
+              <h4 class="text-lg font-bold text-orange-300 mb-2">중간 별</h4>
+              <p class="text-sm text-gray-300 mb-2">원소 범위: 1-26번</p>
+              <p class="text-sm text-gray-300 mb-2">필요 질량: 50</p>
+              <p class="text-sm text-gray-300 mb-3">비용: 3개</p>
+              <button id="fuse-medium-star" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded disabled:opacity-50" disabled>
+                중간 별 생성 불가
               </button>
+            </div>
+            <div class="bg-gray-600 p-4 rounded">
+              <h4 class="text-lg font-bold text-red-300 mb-2">큰 별</h4>
+              <p class="text-sm text-gray-300 mb-2">원소 범위: 1-26번</p>
+              <p class="text-sm text-gray-300 mb-2">필요 질량: 200</p>
+              <p class="text-sm text-gray-300 mb-3">비용: 7개</p>
+              <button id="fuse-large-star" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded disabled:opacity-50" disabled>
+                큰 별 생성 불가
+              </button>
+            </div>
+            <div class="bg-gray-600 p-4 rounded">
+              <h4 class="text-lg font-bold text-purple-300 mb-2">거대 별</h4>
+              <p class="text-sm text-gray-300 mb-2">원소 범위: 1-26번</p>
+              <p class="text-sm text-gray-300 mb-2">필요 질량: 500</p>
+              <p class="text-sm text-gray-300 mb-3">비용: 15개</p>
+              <button id="fuse-giant-star" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded disabled:opacity-50" disabled>
+                거대 별 생성 불가
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 별을 원소로 변환 -->
+        <div class="bg-gray-700 p-4 rounded-lg mb-6">
+          <h3 class="text-xl font-bold text-cyan-300 mb-4">⭐ 별을 원소로 변환</h3>
+          <p class="text-sm text-gray-300 mb-4">별 1개를 소모하여 1~26번 랜덤 원소를 획득할 수 있습니다. (꽝 제거!)</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <button id="convert-small-star" class="bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded disabled:opacity-50" disabled>
+              작은 별 변환 (1개)
+            </button>
+            <button id="convert-medium-star" class="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded disabled:opacity-50" disabled>
+              중간 별 변환 (1개)
+            </button>
+            <button id="convert-large-star" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded disabled:opacity-50" disabled>
+              큰 별 변환 (1개)
+            </button>
+            <button id="convert-giant-star" class="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded disabled:opacity-50" disabled>
+              거대 별 변환 (1개)
+            </button>
+          </div>
+        </div>
+
+        <!-- 별 획득 방법 (새로운 시스템) -->
+        <div class="bg-gray-700 p-4 rounded-lg mb-6">
+          <h3 class="text-xl font-bold text-green-300 mb-4">💫 별 획득 방법 (새로운 시스템)</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-600 p-4 rounded">
+              <h4 class="text-lg font-bold text-cyan-300 mb-2">H, He 대량 변환</h4>
+              <p class="text-sm text-gray-300 mb-3">매 턴 종료 시 자동으로 변환됩니다</p>
+              <div class="text-sm text-gray-300">
+                <p>• H 100개 → 별 1개</p>
+                <p>• He 50개 → 별 1개</p>
+                <p>• 동시에 여러 개 변환 가능</p>
+                <p>• 사용된 H, He는 자동 소모</p>
+              </div>
+            </div>
+            <div class="bg-gray-600 p-4 rounded">
+              <h4 class="text-lg font-bold text-purple-300 mb-2">질량 기반 자동 생성</h4>
+              <p class="text-sm text-gray-300 mb-3">원소 융합으로 질량을 축적하면 별이 자동 생성됩니다</p>
+              <div class="text-sm text-gray-300">
+                <p>• 경금속류: +1 질량</p>
+                <p>• 중금속류: +5 질량</p>
+                <p>• 철족 금속류: +30 질량</p>
+                <p>• 질량 충족 시 자동 별 생성</p>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- 초신성 대기열 -->
         <div class="bg-gray-700 p-4 rounded-lg flex-1 overflow-y-auto">
-          <h3 class="text-xl font-bold text-red-300 mb-4">초신성 대기열</h3>
+          <h3 class="text-xl font-bold text-red-300 mb-4">🌟 초신성 대기열</h3>
+          <div class="mb-3 p-2 bg-gray-600 rounded text-center">
+            <div class="text-sm text-gray-300">
+              💫 <strong>헬륨 효과:</strong> He 10개당 초신성 턴 1턴 단축!
+            </div>
+          </div>
           <div id="supernova-queue" class="space-y-2">
             <div class="text-center text-gray-400 py-8">
               <div class="text-4xl mb-2">🌌</div>
@@ -722,6 +838,134 @@
       </div>
     </div>
 
+    <!-- 에너지 시스템 모달 -->
+    <div id="fuel-system-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center mb-4 flex-shrink-0">
+          <h2 class="text-2xl font-bold text-orange-300">⚡ 분자 에너지 시스템</h2>
+          <button id="close-fuel-system-modal" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        
+        <!-- 에너지 현황 -->
+        <div class="bg-gray-700 p-4 rounded-lg mb-6">
+          <h3 class="text-xl font-bold text-orange-300 mb-4">에너지 현황</h3>
+          <div class="flex items-center gap-4">
+            <div class="flex-1">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-sm text-gray-300">현재 에너지</span>
+                <span id="fuel-ratio" class="text-sm text-orange-400">0</span>
+              </div>
+            </div>
+            <div class="text-2xl font-bold text-orange-400" id="fuel-amount">0</div>
+          </div>
+        </div>
+
+        <!-- 에너지 능력 -->
+        <div class="bg-gray-700 p-4 rounded-lg mb-6">
+          <h3 class="text-xl font-bold text-green-300 mb-4">에너지 능력</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button id="fuel-heal-all" class="bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded disabled:opacity-50" disabled>
+              <div class="text-lg font-bold">💚 전체 치료</div>
+              <div class="text-sm">비용: 20 에너지</div>
+            </button>
+            <button id="fuel-boost-attack" class="bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded disabled:opacity-50" disabled>
+              <div class="text-lg font-bold">⚔️ 공격력 증가</div>
+              <div class="text-sm">비용: 15 에너지</div>
+            </button>
+            <button id="fuel-energy-boost" class="bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded disabled:opacity-50" disabled>
+              <div class="text-lg font-bold">⚡ 에너지 증가</div>
+              <div class="text-sm">비용: 10 에너지</div>
+            </button>
+            <button id="fuel-card-draw" class="bg-purple-600 hover:bg-purple-700 text-white py-3 px-4 rounded disabled:opacity-50" disabled>
+              <div class="text-lg font-bold">🃏 카드 뽑기</div>
+              <div class="text-sm">비용: 25 에너지</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- 에너지 획득 방법 -->
+        <div class="bg-gray-700 p-4 rounded-lg flex-1 overflow-y-auto">
+          <h3 class="text-xl font-bold text-cyan-300 mb-4">에너지 획득 방법</h3>
+          <div class="space-y-3">
+            <div class="bg-gray-600 p-3 rounded">
+              <h4 class="text-lg font-bold text-yellow-300 mb-2">분자 에너지 변환</h4>
+              <p class="text-sm text-gray-300 mb-2">분자 카드를 에너지로 변환할 수 있습니다</p>
+              <div class="text-sm text-gray-300">
+                <p>• H2O (물): 3 에너지</p>
+                <p>• CO2 (이산화탄소): 2 에너지</p>
+                <p>• CH4 (메탄): 6 에너지</p>
+                <p>• C6H12O6 (포도당): 12 에너지</p>
+              </div>
+            </div>
+            <div class="bg-gray-600 p-3 rounded">
+              <h4 class="text-lg font-bold text-purple-300 mb-2">별 레벨 보너스</h4>
+              <p class="text-sm text-gray-300">별 레벨이 높은 분자는 더 많은 에너지를 제공합니다</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- 튜토리얼 도움말 모달 -->
+    <div id="tutorial-help-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-2xl w-full">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold text-yellow-300">🎓 튜토리얼 가이드</h2>
+          <button id="close-tutorial-help" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        
+        <div class="space-y-4">
+          <div class="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 p-4 rounded-lg border border-yellow-400/30">
+            <h3 class="text-lg font-bold text-yellow-300 mb-2">🌟 원소 대전에 오신 것을 환영합니다!</h3>
+            <p class="text-gray-300 text-sm leading-relaxed">
+              화학 원소들을 사용한 전략 카드 게임입니다. 튜토리얼을 통해 게임의 모든 기능을 배워보세요!
+            </p>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-700 p-4 rounded-lg">
+              <h4 class="text-lg font-bold text-blue-300 mb-2">🎮 기본 게임플레이</h4>
+              <ul class="text-sm text-gray-300 space-y-1">
+                <li>• 원소 카드를 전장에 배치</li>
+                <li>• 상대방 카드와 전투</li>
+                <li>• 상대방 기지 공격</li>
+                <li>• 핵융합으로 강력한 원소 생성</li>
+              </ul>
+            </div>
+            
+            <div class="bg-gray-700 p-4 rounded-lg">
+              <h4 class="text-lg font-bold text-purple-300 mb-2">⚗️ 고급 시스템</h4>
+              <ul class="text-sm text-gray-300 space-y-1">
+                <li>• 분자 합성 및 도감</li>
+                <li>• 별 관리 및 융합</li>
+                <li>• 에너지 시스템</li>
+                <li>• 온라인 매칭</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div class="bg-blue-900/20 border border-blue-400/30 p-4 rounded-lg">
+            <h4 class="text-lg font-bold text-blue-300 mb-2">💡 튜토리얼 특징</h4>
+            <ul class="text-sm text-gray-300 space-y-1">
+              <li>• 12단계의 체계적인 가이드</li>
+              <li>• 실시간 하이라이트 및 툴팁</li>
+              <li>• 키보드 단축키 지원 (←→, Enter, Esc)</li>
+              <li>• 언제든지 이전/다음 단계 이동 가능</li>
+            </ul>
+          </div>
+        </div>
+        
+        <div class="flex justify-between mt-6">
+          <button id="close-tutorial-help-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+            닫기
+          </button>
+          <button id="start-tutorial-from-help" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded">
+            🚀 튜토리얼 시작하기
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- 분자 도감 모달 -->
     <div id="molecule-guide-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden flex items-center justify-center z-50">
@@ -2093,6 +2337,9 @@
   </style>
 
   <script src="src/js/specialAbilityMapper.js"></script>
+  <script src="src/js/halflifeSystem.js"></script>
+  <script src="src/js/statusEffects.js"></script>
+  <script src="src/js/cardProperties.js"></script>
   <script src="src/js/game.js"></script>
   <script src="src/js/elementColors.js"></script>
   <script src="src/js/card.js"></script>
@@ -2106,11 +2353,13 @@
   <script src="src/js/fusionSystem.js"></script>
   <script src="src/js/researchShop.js"></script>
   <script src="src/js/starManagement.js"></script>
+  <script src="src/js/starCurrency.js"></script>
+  <script src="src/js/starFusionUI.js"></script>
   <script src="src/js/fusionUI.js"></script>
   <script src="src/js/cardPackSystem.js"></script>
   <script src="src/js/ui.js"></script>
-  <script src="src/js/tutorial.js"></script>
   <script src="src/js/onlineMatching.js"></script>
+  <script src="src/js/tutorial.js"></script>
   <script src="src/js/app.js"></script>
 </body>
 </html>

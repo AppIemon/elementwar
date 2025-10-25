@@ -1,4 +1,4 @@
-const battlefield = {
+let battlefield = {
   lanes: [
     { player: null, computer: null },
     { player: null, computer: null },
@@ -28,6 +28,12 @@ function calculateAffinityDamage(attacker, defender) {
         attacker.affinities.weak_against.includes(defender.category)) {
       damageMultiplier *= 0.7;
     }
+  }
+  
+  // 별 시스템 전투 보너스 적용
+  if (attacker.starLevel && attacker.starLevel > 0) {
+    const starBonus = 1 + (attacker.starLevel * 0.2); // 별 레벨당 20% 공격력 증가
+    damageMultiplier *= starBonus;
   }
   
   return damageMultiplier;
@@ -139,8 +145,23 @@ function createReplacedCard(originalCard) {
   // 시너지 보너스 초기화 (손패에서는 별도로 계산됨)
   replacedCard.synergyBonus = 1;
   
+  // 반감기 정보 복사 (기존 반감기 진행 상태 유지)
+  if (originalCard.halflife) {
+    replacedCard.halflife = {
+      maxTurns: originalCard.halflife.maxTurns,
+      currentTurns: originalCard.halflife.currentTurns, // 기존 진행 상태 유지
+      decayProducts: originalCard.halflife.decayProducts ? [...originalCard.halflife.decayProducts] : [],
+      isStable: originalCard.halflife.isStable
+    };
+  }
+  
   // 소유자 정보 초기화
   replacedCard.owner = null;
+  
+  // 온라인 대전 상대방 카드 표시 정보 복사
+  if (originalCard && typeof originalCard === 'object' && originalCard.isOpponentCard !== undefined) {
+    replacedCard.isOpponentCard = originalCard.isOpponentCard;
+  }
   
   console.log(`[createReplacedCard] Created replaced card: ${replacedCard.name} (HP: ${replacedCard.hp}, ATK: ${replacedCard.atk})`);
   
@@ -169,8 +190,13 @@ function resetBattlefield() {
     lane.player = null;
     lane.computer = null;
   });
-  battlefield.bases.player.hp = battlefield.bases.player.maxHp;
-  battlefield.bases.computer.hp = battlefield.bases.computer.maxHp;
+  
+  // 기지 체력을 10^20으로 명시적으로 설정 (initGame과 동일하게)
+  const baseHp = Math.pow(10, 20);
+  battlefield.bases.player.hp = baseHp;
+  battlefield.bases.player.maxHp = baseHp;
+  battlefield.bases.computer.hp = baseHp;
+  battlefield.bases.computer.maxHp = baseHp;
 
   renderBattlefield();
   if (typeof updateBaseDisplay === 'function') {
@@ -206,13 +232,25 @@ function placeCardOnBattlefield(card, laneIndex, side) {
     // 기존 카드를 새 카드로 교체
     card.owner = side;
     card.lastDamageTurn = gameState.turnCount;
+    
+    // 온라인 대전에서 상대방 카드 표시를 위한 정보 추가
+    if (window.onlineGameState?.isOnline && card && typeof card === 'object') {
+      // 온라인 대전에서는 computer 슬롯이 상대방 플레이어
+      card.isOpponentCard = (side === 'computer');
+    }
     // 분자 카드와 원소 카드를 구분하여 안전하게 속성 설정
-    if (card.type === 'molecule') {
-      // 분자 카드는 자체 이름/타입을 유지
+    if (card.type === 'molecule' && card.elements && card.elements.length > 1) {
+      // 실제 분자 카드 (2개 이상의 원소로 구성)
       card.isSynthesis = true;
       card.components = card.components || (card.elements || []);
       card.name = card.name || card.symbol || '분자';
+    } else if (card.type === 'molecule' && card.elements && card.elements.length === 1) {
+      // 단일 원소로 구성된 "분자"는 실제로는 원소 카드로 처리
+      card.isSynthesis = false;
+      card.components = [];
+      card.name = (card.element && card.element.name) ? card.element.name : (card.name || '카드');
     } else {
+      // 일반 원소 카드
       card.components = [];
       card.isSynthesis = false;
       card.name = (card.element && card.element.name) ? card.element.name : (card.name || '카드');
@@ -220,6 +258,7 @@ function placeCardOnBattlefield(card, laneIndex, side) {
     
     battlefield.lanes[laneIndex][side] = card;
 
+    // 카드 제거 로직 (드래그 앤 드롭 또는 온라인 게임)
     if (draggedCardData && draggedCardData.id === card.id) {
       if (draggedCardData.origin === 'hand' && isPlayerAction) {
         removeCardFromHand(card.id, 'player');
@@ -230,6 +269,14 @@ function placeCardOnBattlefield(card, laneIndex, side) {
           console.log(`[placeCard] Cleared original battlefield slot: Lane ${draggedCardData.originLaneIndex}, Side ${draggedCardData.originSide}`);
         }
       }
+    } else if (window.onlineGameState?.isOnline && side === 'player') {
+      // 온라인 게임에서 플레이어 카드 배치 시 손패에서 제거
+      removeCardFromHand(card.id, 'player');
+      console.log(`[placeCard] 온라인 게임: 손패에서 카드 제거 - ${card.name}`);
+    } else if (isPlayerAction && !draggedCardData) {
+      // 일반적인 플레이어 액션 (드래그 앤 드롭이 아닌 경우)
+      removeCardFromHand(card.id, 'player');
+      console.log(`[placeCard] 일반 플레이어 액션: 손패에서 카드 제거 - ${card.name}`);
     } else {
       console.log("[placeCard] Card source wasn't drag-and-drop, removal skipped in this block.");
     }
@@ -239,26 +286,61 @@ function placeCardOnBattlefield(card, laneIndex, side) {
     // 시너지 보너스 업데이트
     updateBattlefieldSynergy();
     
-    // 온라인 게임인 경우 상대방에게 카드 배치 알림 (Socket.IO 기반)
-    if (window.onlineGameState && window.onlineGameState.isOnline && window.onlineMatching) {
+    // 온라인 게임인 경우 상대방에게 카드 배치 알림
+    if (window.onlineGameState?.isOnline && window.onlineMatching) {
       console.log('카드 배치 이벤트 전송:', {
         card: card.name,
         laneIndex: laneIndex,
         side: side
       });
       
+      // 온라인 게임에서는 서버 응답을 기다린 후 렌더링
       window.onlineMatching.placeCard(card, laneIndex, side).then(result => {
         if (result.success) {
-          console.log('카드 배치 완료');
+          console.log('카드 배치 완료:', result);
+          // 서버에서 받은 전장 상태로 업데이트
+          if (result.battlefield) {
+            // battlefield 객체의 속성을 업데이트
+            battlefield.lanes = result.battlefield.lanes || battlefield.lanes;
+            battlefield.bases = result.battlefield.bases || battlefield.bases;
+            renderBattlefield();
+          }
         } else {
           console.error('카드 배치 실패:', result.error);
+          // 오류 발생 시 사용자에게 알림 및 복구 시도
+          if (window.game && window.game.showMessage) {
+            window.game.showMessage('카드 배치 중 오류가 발생했습니다: ' + result.error, 'error');
+          }
+          // 카드를 손패로 되돌리기
+          if (side === 'player') {
+            addCardToHand(card, 'player');
+            renderPlayerHand();
+          }
+        }
+      }).catch(error => {
+        console.error('카드 배치 중 예외 발생:', error);
+        if (window.game && window.game.showMessage) {
+          window.game.showMessage('카드 배치 중 연결 오류가 발생했습니다. 재연결을 시도합니다.', 'error');
+        }
+        // 카드를 손패로 되돌리기
+        if (side === 'player') {
+          addCardToHand(card, 'player');
+          renderPlayerHand();
         }
       });
+    } else {
+      // 오프라인 게임에서는 즉시 렌더링
+      renderBattlefield();
     }
     
     // 자동화 체크 (카드 배치 후 즉시 실행)
     if (typeof window.checkAutomationImmediate === 'function') {
       window.checkAutomationImmediate();
+    }
+    
+    // 튜토리얼 액션 처리
+    if (typeof window.onCardPlaced === 'function') {
+      window.onCardPlaced(card, laneIndex, side);
     }
     
     renderBattlefield();
@@ -267,13 +349,26 @@ function placeCardOnBattlefield(card, laneIndex, side) {
   } else if (currentCard === null) {
     card.owner = side;
     card.lastDamageTurn = gameState.turnCount;
+    
+    // 온라인 대전에서 상대방 카드 표시를 위한 정보 추가
+    if (window.onlineGameState?.isOnline && card && typeof card === 'object') {
+      // 온라인 대전에서는 computer 슬롯이 상대방 플레이어
+      card.isOpponentCard = (side === 'computer');
+    }
 
     // 분자 카드와 원소 카드를 구분하여 안전하게 속성 설정
-    if (card.type === 'molecule') {
+    if (card.type === 'molecule' && card.elements && card.elements.length > 1) {
+      // 실제 분자 카드 (2개 이상의 원소로 구성)
       card.isSynthesis = true;
       card.components = card.components || (card.elements || []);
       card.name = card.name || card.symbol || '분자';
+    } else if (card.type === 'molecule' && card.elements && card.elements.length === 1) {
+      // 단일 원소로 구성된 "분자"는 실제로는 원소 카드로 처리
+      card.isSynthesis = false;
+      card.components = [];
+      card.name = (card.element && card.element.name) ? card.element.name : (card.name || '카드');
     } else {
+      // 일반 원소 카드
       card.components = [];
       card.isSynthesis = false;
       card.name = (card.element && card.element.name) ? card.element.name : (card.name || '카드');
@@ -286,26 +381,61 @@ function placeCardOnBattlefield(card, laneIndex, side) {
     // 시너지 보너스 업데이트
     updateBattlefieldSynergy();
     
-    // 온라인 게임인 경우 상대방에게 카드 배치 알림 (Socket.IO 기반)
-    if (window.onlineGameState && window.onlineGameState.isOnline && window.onlineMatching) {
+    // 온라인 게임인 경우 상대방에게 카드 배치 알림
+    if (window.onlineGameState?.isOnline && window.onlineMatching) {
       console.log('카드 배치 이벤트 전송:', {
         card: card.name,
         laneIndex: laneIndex,
         side: side
       });
       
+      // 온라인 게임에서는 서버 응답을 기다린 후 렌더링
       window.onlineMatching.placeCard(card, laneIndex, side).then(result => {
         if (result.success) {
-          console.log('카드 배치 완료');
+          console.log('카드 배치 완료:', result);
+          // 서버에서 받은 전장 상태로 업데이트
+          if (result.battlefield) {
+            // battlefield 객체의 속성을 업데이트
+            battlefield.lanes = result.battlefield.lanes || battlefield.lanes;
+            battlefield.bases = result.battlefield.bases || battlefield.bases;
+            renderBattlefield();
+          }
         } else {
           console.error('카드 배치 실패:', result.error);
+          // 오류 발생 시 사용자에게 알림 및 복구 시도
+          if (window.game && window.game.showMessage) {
+            window.game.showMessage('카드 배치 중 오류가 발생했습니다: ' + result.error, 'error');
+          }
+          // 카드를 손패로 되돌리기
+          if (side === 'player') {
+            addCardToHand(card, 'player');
+            renderPlayerHand();
+          }
+        }
+      }).catch(error => {
+        console.error('카드 배치 중 예외 발생:', error);
+        if (window.game && window.game.showMessage) {
+          window.game.showMessage('카드 배치 중 연결 오류가 발생했습니다. 재연결을 시도합니다.', 'error');
+        }
+        // 카드를 손패로 되돌리기
+        if (side === 'player') {
+          addCardToHand(card, 'player');
+          renderPlayerHand();
         }
       });
+    } else {
+      // 오프라인 게임에서는 즉시 렌더링
+      renderBattlefield();
     }
     
     // 자동화 체크 (카드 배치 후 즉시 실행)
     if (typeof window.checkAutomationImmediate === 'function') {
       window.checkAutomationImmediate();
+    }
+    
+    // 튜토리얼 액션 처리
+    if (typeof window.onCardPlaced === 'function') {
+      window.onCardPlaced(card, laneIndex, side);
     }
     
     renderBattlefield();
@@ -323,6 +453,10 @@ function placeCardOnBattlefield(card, laneIndex, side) {
         originLane[draggedCardData.originSide] = null;
         console.log(`[placeCard] Moved card: Cleared original battlefield slot: Lane ${draggedCardData.originLaneIndex}, Side ${draggedCardData.originSide}`);  
       }
+    } else if (isPlayerAction && !draggedCardData) {
+      // 일반적인 플레이어 액션 (드래그 앤 드롭이 아닌 경우)
+      removeCardFromHand(card.id, 'player');
+      console.log(`[placeCard] 일반 플레이어 액션: 손패에서 카드 제거 - ${card.name}`);
     }
 
     return true;
@@ -451,6 +585,11 @@ function renderBattlefield() {
       const cardElement = createCardElement(lane.player, false);
       playerSlot.appendChild(cardElement);
       
+      // 반감기 UI 업데이트
+      if (window.halfLifeSystem && lane.player.halflife && !lane.player.halflife.isStable) {
+        window.halfLifeSystem.updateHalfLifeUI(cardElement, lane.player);
+      }
+      
       // 카드 등장 애니메이션 (손패에서 전장으로)
       if (window.playCardEntranceAnimation) {
         setTimeout(() => {
@@ -463,6 +602,11 @@ function renderBattlefield() {
       const cardElement = createCardElement(lane.computer, false);
       computerSlot.appendChild(cardElement);
       console.log(`컴퓨터 카드 렌더링: ${lane.computer.name} (라인 ${index})`);
+      
+      // 반감기 UI 업데이트
+      if (window.halfLifeSystem && lane.computer.halflife && !lane.computer.halflife.isStable) {
+        window.halfLifeSystem.updateHalfLifeUI(cardElement, lane.computer);
+      }
       
       // 카드 등장 애니메이션 (컴퓨터 카드)
       if (window.playCardEntranceAnimation) {
@@ -606,6 +750,14 @@ function resolveAttack(attackerCard, targetCard, attackerLaneIndex, targetLaneIn
   if (targetCard.hp <= 0) {
     console.log(`${targetCard.name} defeated by ${attackerCard.name}.`);
     
+    // 별 획득 (철 이상 원소 처치 시)
+    if (window.starCurrency && targetCard.element && targetCard.element.number >= 26) {
+      const starsGained = window.starCurrency.gainStars(targetCard.element.number, attackerSide);
+      if (starsGained > 0) {
+        showMessage(`⭐ ${targetCard.element.name} 처치로 별 ${starsGained}개 획득!`, 'star');
+      }
+    }
+    
     // 사망 시 특수능력 발동 (피격자)
     if (targetCard.specialAbilities && Array.isArray(targetCard.specialAbilities)) {
       targetCard.specialAbilities.forEach(ability => {
@@ -657,6 +809,34 @@ function resolveAttack(attackerCard, targetCard, attackerLaneIndex, targetLaneIn
       
       addCoins(coinReward, attackerCard.owner);
       showMessage(`${attackerCard.owner === 'player' ? '플레이어' : '컴퓨터'}가 ${coinReward} 코인을 획득했습니다!`, 'coin');
+      
+      // 카드 처치 시 에너지 지급 (플레이어만)
+      if (attackerCard.owner === 'player') {
+        let energyReward = 1; // 기본 에너지 보상
+        
+        // 원소 카드인 경우 원소별 에너지 값 계산
+        if (targetCard.element && !targetCard.isSynthesis) {
+          energyReward = window.calculateElementEnergyValue ? window.calculateElementEnergyValue(targetCard) : 1;
+        } else if (targetCard.isSynthesis || targetCard.type === 'molecule') {
+          // 분자 카드인 경우 분자별 에너지 값 계산
+          energyReward = window.calculateMoleculeEnergyValue ? window.calculateMoleculeEnergyValue(targetCard) : 2;
+        }
+        
+        // 에너지 추가
+        if (typeof addEnergy === 'function') {
+          addEnergy(energyReward, 'player');
+        } else {
+          if (!gameState.energy) gameState.energy = 0;
+          gameState.energy += energyReward;
+          
+          // fusionSystem과 동기화
+          if (gameState.fusionSystem) {
+            gameState.fusionSystem.energy = gameState.energy;
+          }
+        }
+        
+        showMessage(`카드 처치로 에너지 ${energyReward}를 획득했습니다!`, 'energy');
+      }
     }
     handleCardDeath(targetLaneIndex, attackerSide === 'player' ? 'computer' : 'player');
     return true;
@@ -671,3 +851,7 @@ window.updateBaseDisplay = typeof updateBaseDisplay !== 'undefined' ? updateBase
 window.findCardInHand = typeof findCardInHand !== 'undefined' ? findCardInHand : undefined;
 window.removeCardFromHand = typeof removeCardFromHand !== 'undefined' ? removeCardFromHand : undefined;
 window.createReplacedCard = createReplacedCard;
+
+// 에너지 계산 함수들을 전역으로 노출
+window.calculateElementEnergyValue = typeof calculateElementEnergyValue !== 'undefined' ? calculateElementEnergyValue : undefined;
+window.calculateMoleculeEnergyValue = typeof calculateMoleculeEnergyValue !== 'undefined' ? calculateMoleculeEnergyValue : undefined;
